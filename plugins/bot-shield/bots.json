@@ -1,0 +1,22 @@
+[
+    {
+        "name": "GPTBot",
+        "user_agent": "GPTBot",
+        "description": "OpenAI's GPT web crawler"
+    },
+    {
+        "name": "Claude Bot",
+        "user_agent": "Claude-Web",
+        "description": "Anthropic's Claude web crawler"
+    },
+    {
+        "name": "CCBot",
+        "user_agent": "CCBot",
+        "description": "Common Crawl bot"
+    },
+    {
+        "name": "Google-Extended",
+        "user_agent": "Google-Extended",
+        "description": "Google's AI training crawler"
+    }
+] 
