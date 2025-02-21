@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ElementRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -24,10 +24,57 @@ export class AllowedBotsComponent implements OnInit {
   selectedBots: { [key: string]: boolean } = {};
   generatedRobotsTxt = '';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private el: ElementRef, private renderer: Renderer2) {}
 
   ngOnInit() {
     this.fetchRobotsTxt();
+    this.setupDivider();
+  }
+
+  setupDivider() {
+    const divider = this.el.nativeElement.querySelector('.divider');
+    const container = this.el.nativeElement.querySelector('.container');
+    const leftPanel = this.el.nativeElement.querySelector('.robots-form');
+    const rightPanel = this.el.nativeElement.querySelector('.output-panel');
+
+    // Add cursor styling to divider
+    this.renderer.setStyle(divider, 'cursor', 'col-resize');
+    
+    let isDragging = false;
+    let mouseMoveListener: () => void;
+    let mouseUpListener: () => void;
+
+    this.renderer.listen(divider, 'mousedown', (e) => {
+      isDragging = true;
+      
+      // Prevent text selection while dragging
+      this.renderer.setStyle(document.body, 'user-select', 'none');
+      
+      mouseMoveListener = this.renderer.listen('document', 'mousemove', onMouseMove);
+      mouseUpListener = this.renderer.listen('document', 'mouseup', onMouseUp);
+    });
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const offset = e.clientX - containerRect.left;
+      const totalWidth = containerRect.width;
+
+      const leftWidth = (offset / totalWidth) * 100;
+      const rightWidth = 100 - leftWidth;
+
+      this.renderer.setStyle(leftPanel, 'flex', `1 1 ${leftWidth}%`);
+      this.renderer.setStyle(rightPanel, 'flex', `1 1 ${rightWidth}%`);
+    };
+
+    const onMouseUp = () => {
+      isDragging = false;
+      // Re-enable text selection
+      this.renderer.setStyle(document.body, 'user-select', '');
+      mouseMoveListener();
+      mouseUpListener();
+    };
   }
 
   updateRobotsTxt() {

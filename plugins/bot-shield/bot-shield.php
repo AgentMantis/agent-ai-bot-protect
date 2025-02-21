@@ -56,7 +56,7 @@ function bot_shield_add_admin_menu() {
         'bot-shield',             // Menu slug
         function() {              // Callback function
             ?>
-            <div class="wrap">
+            <div class="wrap mat-typography">
                 <bot-shield></bot-shield>
             </div>
             <?php
