@@ -1,18 +1,23 @@
-<header>
-  <div class="shield-icon">
-    <img src="assets/shield.svg" alt="Shield icon">
-  </div>
-  <h1>BotShield</h1>
-</header>
-<section>
-  <a routerLink="/settings">Settings</a> | 
-  <a routerLink="/allowed-bots">Allowed Bots</a> | 
-  <a routerLink="/dashboard">Dashboard</a>
-  
-  <router-outlet />
-  
-</section>
+<div class="main-container">
+  <header>
+    <div class="shield-icon">
+      <img src="assets/shield.svg" alt="Shield icon">
+    </div>
+    <h1>Bot Shield</h1>
+  </header>
 
-<footer>
-  <p>BotShield</p>
-</footer>
+  <div class="content">
+    <section>
+      <a routerLink="/settings">Settings</a> | 
+      <a routerLink="/allowed-bots">Allowed Bots</a> | 
+      <a routerLink="/dashboard">Dashboard</a>
+      
+      <router-outlet />
+      
+    </section>
+  </div>
+
+  <footer>
+    <p>Bot Shield Footer</p>
+  </footer>
+</div>
