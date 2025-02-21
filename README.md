@@ -4,7 +4,6 @@ Bot Shield is a plugin for Wordpress that allows you to protect your website fro
 
 It is built on an Angular Custom Element that is inserted into the Wordpress admin dashboard.
 
-
 ## Start Docker
 ```
 docker-compose -f docker-compose.yaml up -d
@@ -12,12 +11,10 @@ docker-compose -f docker-compose.yaml up -d
 
 * Ensure this line is commented out on the initial run of the docker compose.
 * Otherwise the wordpress container will not start.  Once it's up and running, then 
-* uncomment and restart the docker compose.
+* uncomment the following line in `docker-compose.yaml` and restart the docker compose.
 ```
 # - './plugins/bot-shield:/bitnami/wordpress/wp-content/plugins/bot-shield'
 ```
-
-
 
 
 
