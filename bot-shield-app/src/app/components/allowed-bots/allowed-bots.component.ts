@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-
+import { MatCheckboxModule } from '@angular/material/checkbox';
 @Component({
   selector: 'app-allowed-bots',
   imports: [
     CommonModule,
     RouterModule,
     HttpClientModule,
+    MatCheckboxModule,
     FormsModule
   ],
   templateUrl: './allowed-bots.component.html',
@@ -21,11 +22,17 @@ export class AllowedBotsComponent implements OnInit {
   robotsTxtUrl = 'assets/robots.txt';
   botList: string[] = [];
   selectedBots: { [key: string]: boolean } = {};
+  generatedRobotsTxt = '';
 
   constructor(private http: HttpClient) {}
 
   ngOnInit() {
     this.fetchRobotsTxt();
+  }
+
+  updateRobotsTxt() {
+    const blockedBots = Object.keys(this.selectedBots).filter(bot => this.selectedBots[bot]);
+    this.generatedRobotsTxt = blockedBots.map(bot => `User-agent: ${bot}\nDisallow: /`).join('\n\n');
   }
 
   fetchRobotsTxt() {
@@ -51,7 +58,7 @@ export class AllowedBotsComponent implements OnInit {
       });
   }
 
-  onSubmit() {
+  commitRobotsTxt() {
     // Generate new robots.txt content based on selections
     const selectedBotNames = Object.entries(this.selectedBots)
       .filter(([_, selected]) => selected)
@@ -61,6 +68,7 @@ export class AllowedBotsComponent implements OnInit {
       .map(bot => `User-agent: ${bot}\nDisallow: /`)
       .join('\n\n');
 
+    this.generatedRobotsTxt = newRobotsTxt;
     console.log(newRobotsTxt);
     // Here you can add logic to download or display the generated robots.txt
   }
