@@ -8,5 +8,9 @@ export const routes: Routes = [
   { 
     path: 'settings', 
     loadComponent: () => import('./components/settings/settings.component').then(m => m.SettingsComponent)
+  },
+  { 
+    path: 'allowed-bots', 
+    loadComponent: () => import('./components/allowed-bots/allowed-bots.component').then(m => m.AllowedBotsComponent)
   }
 ];

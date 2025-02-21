@@ -14,10 +14,4 @@ import { MatButtonModule } from '@angular/material/button';
 })
 export class AppComponent {
   title = 'bot-shield';
-  links = ['First', 'Second', 'Third'];
-  activeLink = this.links[0];
-
-  addLink() {
-    this.links.push(`Link ${this.links.length + 1}`);
-  }
 }
