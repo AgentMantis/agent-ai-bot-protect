@@ -6,15 +6,16 @@
     <h1>Bot Shield</h1>
   </header>
 
+  <nav>
+    <ul class="nav-menu">
+      <li><a routerLink="/dashboard" routerLinkActive="active">Dashboard</a></li>
+      <li><a routerLink="/allowed-bots" routerLinkActive="active">Allowed Bots</a></li>
+      <li><a routerLink="/settings" routerLinkActive="active">Settings</a></li>
+    </ul>
+  </nav>
+
   <div class="content">
-    <section>
-      <a routerLink="/settings">Settings</a> | 
-      <a routerLink="/allowed-bots">Allowed Bots</a> | 
-      <a routerLink="/dashboard">Dashboard</a>
-      
-      <router-outlet />
-      
-    </section>
+    <router-outlet></router-outlet>
   </div>
 
   <footer>
