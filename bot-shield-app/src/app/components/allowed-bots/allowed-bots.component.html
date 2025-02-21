@@ -1,30 +1,32 @@
 <div class="container">
-  <form class="robots-form">
-    <div class="url-input">
-      <label for="robotsTxtUrl">robots.txt URL:</label>
-      <input 
-        type="text" 
-        id="robotsTxtUrl" 
-        name="robotsTxtUrl"
-        [(ngModel)]="robotsTxtUrl"
-        placeholder="Enter robots.txt URL">
-    </div>
-    
-    <div class="bot-list" *ngIf="botList.length">
-      <h2>Select Bots to Block</h2>
-      <div class="checkbox-group">
-        <mat-checkbox *ngFor="let bot of botList" [(ngModel)]="selectedBots[bot]" [name]="bot" (change)="updateRobotsTxt()">
-          {{ bot }}
-        </mat-checkbox>
+  <div class="panel-container">
+    <form class="robots-form">
+      <div class="url-input">
+        <label for="robotsTxtUrl">robots.txt URL:</label>
+        <input 
+          type="text" 
+          id="robotsTxtUrl" 
+          name="robotsTxtUrl"
+          [(ngModel)]="robotsTxtUrl"
+          placeholder="Enter robots.txt URL">
       </div>
+      
+      <div class="bot-list" *ngIf="botList.length">
+        <h2>Select Bots to Block</h2>
+        <div class="checkbox-group">
+          <mat-checkbox *ngFor="let bot of botList" [(ngModel)]="selectedBots[bot]" [name]="bot" (change)="updateRobotsTxt()">
+            {{ bot }}
+          </mat-checkbox>
+        </div>
+      </div>
+    </form>
+    <div class="divider"></div>
+    <div class="output-panel">
+      <div class="output-header">
+        <h2>Generated robots.txt</h2>
+        <button type="button" (click)="commitRobotsTxt()">Commit robots.txt</button>
+      </div>
+      <pre>{{ generatedRobotsTxt }}</pre>
     </div>
-  </form>
-  <div class="divider"></div>
-  <div class="output-panel">
-    <div class="output-header">
-      <h2>Generated robots.txt</h2>
-      <button type="button" (click)="commitRobotsTxt()">Commit robots.txt</button>
-    </div>
-    <pre>{{ generatedRobotsTxt }}</pre>
   </div>
 </div> 

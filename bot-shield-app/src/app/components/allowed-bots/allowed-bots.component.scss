@@ -3,21 +3,27 @@
   gap: 0;
 }
 
+.panel-container {
+  display: flex;
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
 .robots-form {
   flex: 1 1 70%;
   padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 8px 0 0 8px;
   background-color: #f9f9f9;
+  border-radius: 8px 0 0 8px;
 }
 
 .output-panel {
   flex: 1 1 30%;
   padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 0 8px 8px 0;
   background-color: #f1f1f1;
   overflow-y: auto;
+  border-radius: 0 8px 8px 0;
 }
 
 .output-header {
