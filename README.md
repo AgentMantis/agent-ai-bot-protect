@@ -41,7 +41,7 @@ http://localhost/wp-admin/
 * password: adminpassword
 
 
-# Build the Bot Shield plugin
+# Build the BotShield plugin
 
 ```
 cd bot-shield-app
@@ -49,4 +49,4 @@ npm install
 npm run build:element
 ```
 
-Refresh the wordpress page and the Bot Shield plugin should be available.
+Refresh the wordpress page and the BotShield plugin should be available.

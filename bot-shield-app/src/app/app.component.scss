@@ -3,7 +3,7 @@
   margin: 0;
   padding: 0;
 }
-section,
+
 footer,
 header {
   display: flex;
@@ -11,6 +11,10 @@ header {
   gap: 12px;
   padding: 16px;
   
+}
+
+section {
+  padding: 16px;
 }
 
 .shield-icon {

@@ -31,7 +31,7 @@ services:
       - WORDPRESS_DATABASE_NAME=bitnami_wordpress
       - WORDPRESS_SKIP_BOOTSTRAP=no
       - WORDPRESS_TABLE_PREFIX=wp_
-      - WORDPRESS_BLOG_NAME=Bot Shield
+      - WORDPRESS_BLOG_NAME=BotShield
       - WORDPRESS_USERNAME=admin
       - WORDPRESS_PASSWORD=adminpassword
       - WORDPRESS_EMAIL=admin@example.com

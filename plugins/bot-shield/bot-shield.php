@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Bot Shield
+Plugin Name: BotShield
 Description: Block AI bots by managing user agents and access patterns
 Version: 1.0.0
 Author: Your Name
@@ -50,8 +50,8 @@ add_filter('plugin_action_links_bot-shield/bot-shield.php', 'bot_shield_add_sett
 // Add menu item
 function bot_shield_add_admin_menu() {
     add_menu_page(
-        'Bot Shield',         // Page title
-        'Bot Shield',         // Menu title
+        'BotShield',         // Page title
+        'BotShield',         // Menu title
         'manage_options',         // Capability
         'bot-shield',             // Menu slug
         function() {              // Callback function
