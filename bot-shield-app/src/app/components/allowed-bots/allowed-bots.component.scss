@@ -7,7 +7,7 @@
   flex: 1 1 70%;
   padding: 20px;
   border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: 8px 0 0 8px;
   background-color: #f9f9f9;
 }
 
@@ -15,7 +15,7 @@
   flex: 1 1 30%;
   padding: 20px;
   border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: 0 8px 8px 0;
   background-color: #f1f1f1;
   overflow-y: auto;
 }
