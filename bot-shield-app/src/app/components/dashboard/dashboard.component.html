@@ -1,1 +1,15 @@
-<p>dashboard works!</p>
+<div class="dashboard-container">
+  <mat-card class="chart-card">
+    <mat-card-header>
+      <mat-card-title>Bot Traffic Overview</mat-card-title>
+      <mat-card-subtitle>Distribution of bot traffic by User Agent</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="chart-container">
+        <canvas #botChart width="400" height="400"></canvas>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+
