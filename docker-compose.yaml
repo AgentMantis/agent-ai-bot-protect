@@ -19,8 +19,8 @@ services:
     volumes:
       - 'wordpress_data:/bitnami/wordpress'
       # Ensure this line is commented out on the initial run of the docker compose.
-      # Otherwise the wordpress container will not start.  Once it's up and running, then 
-      # uncomment and restart the docker compose.
+      # Otherwise the wordpress container will not start.
+      # To mount the bot-shield plugin, uncomment the line below and restart the docker compose.
       # - './plugins/bot-shield:/bitnami/wordpress/wp-content/plugins/bot-shield'
 
     depends_on:
