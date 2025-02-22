@@ -9,9 +9,9 @@ It is built on an Angular Custom Element that is inserted into the Wordpress adm
 docker-compose -f docker-compose.yaml up -d
 ```
 
-* Ensure this line is commented out on the initial run of the docker compose.
-* Otherwise the wordpress container will not start.  Once it's up and running, then 
-* uncomment the following line in `docker-compose.yaml` and restart the docker compose.
+* IMPORTANT info for mounting the bot-shield plugin within the `docker-compose.yaml` file.
+* Ensure this line is commented out on the initial execution of the docker compose, otherwise the wordpress container will not start.
+* To mount the bot-shield plugin, uncomment the line below and restart the docker compose.
 ```
 # - './plugins/bot-shield:/bitnami/wordpress/wp-content/plugins/bot-shield'
 ```
