@@ -24,6 +24,10 @@ function bot_shield_enqueue_scripts() {
         add_action('admin_footer', function() use ($plugin_dir_url) {
             ?>
             <!-- <script type="module" src="<?php echo $plugin_dir_url; ?>dist/browser/polyfills.js?ver=1.0.0"></script> -->
+            <script>
+                // Add REST API nonce to window object
+                window.wpRestNonce = '<?php echo wp_create_nonce('wp_rest'); ?>';
+            </script>
             <script type="module" src="<?php echo $plugin_dir_url; ?>dist/bot-shield.js?ver=1.0.0"></script>
             <?php
         });
@@ -65,4 +69,41 @@ function bot_shield_add_admin_menu() {
         30                        // Position
     );
 }
-add_action('admin_menu', 'bot_shield_add_admin_menu'); 
+add_action('admin_menu', 'bot_shield_add_admin_menu');
+
+// Add REST API endpoint for saving robots.txt
+function bot_shield_register_routes() {
+    register_rest_route('bot-shield/v1', '/save-robots-txt', [
+        'methods' => 'POST',
+        'callback' => 'bot_shield_save_robots_txt',
+        'permission_callback' => function() {
+            return current_user_can('manage_options');
+        }
+    ]);
+}
+add_action('rest_api_init', 'bot_shield_register_routes');
+
+// Handle saving robots.txt file
+function bot_shield_save_robots_txt($request) {
+    // Get the content from the request
+    $content = $request->get_param('content');
+    
+    if (!$content) {
+        return new WP_Error('no_content', 'No content provided', ['status' => 400]);
+    }
+
+    // Get path to robots.txt in WordPress root directory
+    $robots_path = ABSPATH . 'robots.txt';
+
+    // Try to write the file
+    $result = file_put_contents($robots_path, $content);
+    
+    if ($result === false) {
+        return new WP_Error('write_failed', 'Failed to write robots.txt file', ['status' => 500]);
+    }
+
+    return [
+        'success' => true,
+        'message' => 'robots.txt file updated successfully'
+    ];
+} 

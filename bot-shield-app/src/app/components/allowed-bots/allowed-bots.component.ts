@@ -83,6 +83,7 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   fetchRobotsTxt() {
+    // First fetch the bot list from assets
     this.http.get(this.robotsTxtUrl, { responseType: 'text' })
       .subscribe({
         next: (content) => {
@@ -98,9 +99,44 @@ export class AllowedBotsComponent implements OnInit {
           this.botList.forEach(bot => {
             this.selectedBots[bot] = false;
           });
+
+          // Now fetch the actual robots.txt from WordPress root
+          this.http.get('/robots.txt', { responseType: 'text' })
+            .subscribe({
+              next: (robotsTxt) => {
+                // Split into sections by blank lines
+                const sections = robotsTxt.split('\n\n');
+                
+                sections.forEach(section => {
+                  const lines = section.split('\n');
+                  const userAgentLine = lines.find(line => 
+                    line.trim().toLowerCase().startsWith('user-agent:')
+                  );
+                  const disallowLine = lines.find(line => 
+                    line.trim().toLowerCase().startsWith('disallow:')
+                  );
+
+                  if (userAgentLine && disallowLine) {
+                    const botName = userAgentLine.replace('User-agent:', '').trim();
+                    const disallowValue = disallowLine.replace('Disallow:', '').trim();
+
+                    // If this bot is in our list and has Disallow: /, mark it as selected
+                    if (this.botList.includes(botName) && disallowValue === '/') {
+                      this.selectedBots[botName] = true;
+                    }
+                  }
+                });
+
+                // Update the generated text
+                this.updateRobotsTxt();
+              },
+              error: (error) => {
+                console.error('Error fetching current robots.txt:', error);
+              }
+            });
         },
         error: (error) => {
-          console.error('Error fetching robots.txt:', error);
+          console.error('Error fetching bot list:', error);
         }
       });
   }
@@ -117,6 +153,48 @@ export class AllowedBotsComponent implements OnInit {
 
     this.generatedRobotsTxt = newRobotsTxt;
     console.log(newRobotsTxt);
+    this.saveRobotsTxt(newRobotsTxt);
     // Here you can add logic to download or display the generated robots.txt
+  }
+
+  saveRobotsTxt(content: string) {
+    const endpoint = '/wp-json/bot-shield/v1/save-robots-txt';
+    
+    return this.http.post(endpoint, { content }, {
+        headers: {
+            'X-WP-Nonce': (window as any).wpRestNonce
+        }
+    }).subscribe({
+        next: (response: any) => {
+            console.log('robots.txt saved successfully:', response.message);
+        },
+        error: (error) => {
+            console.error('Error saving robots.txt:', error);
+        }
+    });
+  }
+
+  // Add this method to generate and save robots.txt content
+  generateAndSaveRobotsTxt() {
+    // Generate your robots.txt content based on your allowed bots
+    const robotsTxtContent = this.generateRobotsTxtContent(); // Implement this method based on your needs
+    
+    // Save the generated content
+    this.saveRobotsTxt(robotsTxtContent);
+  }
+
+  private generateRobotsTxtContent(): string {
+    // Example implementation - adjust according to your data structure
+    let content = 'User-agent: *\n';
+    content += 'Disallow: /wp-admin/\n';
+    content += 'Allow: /wp-admin/admin-ajax.php\n\n';
+
+    // Add allowed bots
+    this.botList.forEach(bot => {
+      content += `User-agent: ${bot}\n`;
+      content += 'Allow: /\n\n';
+    });
+
+    return content;
   }
 }
