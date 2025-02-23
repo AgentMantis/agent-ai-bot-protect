@@ -89,21 +89,27 @@ function bot_shield_save_robots_txt($request) {
     $content = $request->get_param('content');
     
     if (!$content) {
+        error_log('Bot Shield: No content provided in request');
         return new WP_Error('no_content', 'No content provided', ['status' => 400]);
     }
 
     // Get path to robots.txt in WordPress root directory
     $robots_path = ABSPATH . 'robots.txt';
+    error_log('Bot Shield: Attempting to write to ' . $robots_path);
+    error_log('Bot Shield: Content to write: ' . $content);
 
     // Try to write the file
     $result = file_put_contents($robots_path, $content);
     
     if ($result === false) {
+        error_log('Bot Shield: Failed to write robots.txt file. Check permissions.');
         return new WP_Error('write_failed', 'Failed to write robots.txt file', ['status' => 500]);
     }
 
+    error_log('Bot Shield: Successfully wrote ' . $result . ' bytes to robots.txt');
     return [
         'success' => true,
-        'message' => 'robots.txt file updated successfully'
+        'message' => 'robots.txt file updated successfully',
+        'bytes_written' => $result
     ];
 } 

@@ -142,23 +142,59 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   commitRobotsTxt() {
-    // Generate new robots.txt content based on selections
-    const selectedBotNames = Object.entries(this.selectedBots)
-      .filter(([_, selected]) => selected)
-      .map(([botName]) => botName);
+    console.log('Starting commitRobotsTxt');
+    // First get the current robots.txt content
+    this.http.get('/robots.txt', { responseType: 'text' })
+        .subscribe({
+            next: (currentContent) => {
+                console.log('Current robots.txt content:', currentContent);
+                
+                // Parse existing content into sections
+                const sections = currentContent.split('\n\n').filter(Boolean);
+                console.log('Parsed sections:', sections);
+                
+                // Keep non-bot related sections
+                const preservedSections = sections.filter(section => {
+                    const userAgentLine = section.split('\n')
+                        .find(line => line.trim().toLowerCase().startsWith('user-agent:'));
+                    if (!userAgentLine) return true;
+                    
+                    const botName = userAgentLine.replace(/user-agent:/i, '').trim();
+                    return !this.botList.includes(botName);
+                });
+                console.log('Preserved sections:', preservedSections);
 
-    const newRobotsTxt = selectedBotNames
-      .map(bot => `User-agent: ${bot}\nDisallow: /`)
-      .join('\n\n');
+                // Generate new sections for selected bots
+                const selectedBotNames = Object.entries(this.selectedBots)
+                    .filter(([_, selected]) => selected)
+                    .map(([botName]) => botName);
+                console.log('Selected bots:', selectedBotNames);
 
-    this.generatedRobotsTxt = newRobotsTxt;
-    console.log(newRobotsTxt);
-    this.saveRobotsTxt(newRobotsTxt);
-    // Here you can add logic to download or display the generated robots.txt
+                const botSections = selectedBotNames
+                    .map(bot => `User-agent: ${bot}\nDisallow: /`);
+                console.log('Bot sections:', botSections);
+
+                // Combine preserved sections with new bot sections
+                const newContent = [...preservedSections, ...botSections].join('\n\n');
+                console.log('New content:', newContent);
+                
+                // Add trailing newline if there isn't one
+                const finalContent = newContent.endsWith('\n') ? newContent : newContent + '\n';
+                console.log('Final content to save:', finalContent);
+
+                // Save the combined content
+                this.saveRobotsTxt(finalContent);
+            },
+            error: (error) => {
+                console.error('Error fetching current robots.txt:', error);
+            }
+        });
   }
 
   saveRobotsTxt(content: string) {
     const endpoint = '/wp-json/bot-shield/v1/save-robots-txt';
+    
+    console.log('Attempting to save robots.txt with content:', content);
     
     return this.http.post(endpoint, { content }, {
         headers: {
@@ -166,10 +202,14 @@ export class AllowedBotsComponent implements OnInit {
         }
     }).subscribe({
         next: (response: any) => {
-            console.log('robots.txt saved successfully:', response.message);
+            console.log('robots.txt saved successfully:', response);
+            this.generatedRobotsTxt = content; // Update the display
         },
         error: (error) => {
             console.error('Error saving robots.txt:', error);
+            if (error.error && error.error.message) {
+                console.error('Server error message:', error.error.message);
+            }
         }
     });
   }
