@@ -33,7 +33,7 @@ export class AllowedBotsComponent implements OnInit {
 
   setupDivider() {
     const divider = this.el.nativeElement.querySelector('.divider');
-    const container = this.el.nativeElement.querySelector('.container');
+    const container = this.el.nativeElement.querySelector('.panel-container');
     const leftPanel = this.el.nativeElement.querySelector('.robots-form');
     const rightPanel = this.el.nativeElement.querySelector('.output-panel');
 
