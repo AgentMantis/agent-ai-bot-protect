@@ -15,7 +15,6 @@ header {
 
 .content {
   flex: 1;
-
   padding: 24px;
   padding-top: 0;
 }
@@ -47,6 +46,7 @@ footer {
   list-style-type: none;
   padding: 0;
   padding-left:25px;
+  margin-bottom: 5px;
   display: flex;
   // gap: 10px;
 }
@@ -58,10 +58,8 @@ footer {
 .nav-menu a {
   text-decoration: none;
   padding: 10px 15px;
-  color:var(--color-text);
-  border: 1px solid #000;
-  border-bottom: none;
-  
+  color: var(--color-text);
+  border: none;
   transition: background-color 0.3s, border-color 0.3s;
 }
 
@@ -74,52 +72,14 @@ footer {
   background-color: var(--color-nav-active);
 }
 
-nav {
-  margin: 20px 0;
-  
-  a {
-    display: inline-block;
-    padding: 10px 20px;
-    text-decoration: none;
-    color: #333;
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    border-bottom: none;
-    margin-right: -1px;
-    position: relative;
-    
-    // Remove right border from all tabs except last
-    &:not(:last-child) {
-      border-right: none;
-    }
-    
-    // Active tab styling
-    &.active {
-      background: white;
-      border-top: 2px solid #1976d2; // Material primary color
-      margin-top: -1px; // Compensate for thicker top border
-      
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: -1px;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: white;
-      }
-    }
-
-    // Hover effect
-    &:hover:not(.active) {
-      background: #e9e9e9;
-    }
-  }
+.nav-menu li:first-child a {
+  border-left: 1px solid var(--color-border);
 }
 
-// Add a bottom border below the navigation
-.content {
-  border-top: 1px solid #ddd;
-  padding: 20px;
-  background: white;
+.nav-menu a {
+  border-top: 1px solid var(--color-border);
+}
+
+.nav-menu a {
+  border-right: 1px solid var(--color-border);
 }
