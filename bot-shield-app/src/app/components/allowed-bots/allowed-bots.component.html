@@ -20,7 +20,9 @@
             [class.selected]="selectedBots[bot]"
             [title]="bot"
             (click)="toggleBot(bot)">
-            <span class="checkmark" *ngIf="selectedBots[bot]">✓</span>
+            <span class="checkmark" [class.selected]="selectedBots[bot]">
+              {{ selectedBots[bot] ? '✕' : '✓' }}
+            </span>
             <span>{{ bot }}</span>
           </button>
         </div>

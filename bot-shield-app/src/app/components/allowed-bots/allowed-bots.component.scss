@@ -68,16 +68,21 @@
   span:not(.checkmark) {
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-left: 24px; // Reserve space for checkmark
+    margin-left: 24px;
   }
 
   .checkmark {
     position: absolute;
-    left: 16px; // Match the button's padding
+    left: 16px;
     font-weight: bold;
     width: 16px;
     display: inline-flex;
     justify-content: center;
+    color: #4caf50;
+    
+    &.selected {
+      color: #f44336;
+    }
   }
 
   &:hover {
@@ -102,9 +107,9 @@
   }
 
   &.selected {
-    background: #e3f2fd;
-    border-color: #2196f3;
-    color: #1976d2;
+    background: #ffebee;
+    border-color: #f44336;
+    color: #d32f2f;
   }
 }
 
