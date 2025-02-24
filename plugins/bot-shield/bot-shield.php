@@ -11,10 +11,22 @@ if (!defined('ABSPATH')) exit;
 
 // Enqueue Angular scripts and styles
 function bot_shield_enqueue_scripts() {
-    // Only load on our admin page
+    $plugin_dir_url = plugin_dir_url(__FILE__);
+
+    // Check if we're NOT in admin
+    if (!is_admin()) {
+        // Enqueue analytics script only for frontend
+        wp_enqueue_script(
+            'bot-shield-analytics',
+            $plugin_dir_url . 'bot-shield-analytics.js',
+            array(), // no dependencies
+            '1.0.0',
+            true // load in footer
+        );
+    }
+
+    // Only load admin-specific scripts on our admin page
     if (isset($_GET['page']) && $_GET['page'] === 'bot-shield') {
-        $plugin_dir_url = plugin_dir_url(__FILE__);
-        
         // Remove default script tags - we'll add them manually with type="module"
         remove_action('wp_head', 'wp_print_scripts');
         remove_action('wp_head', 'wp_print_head_scripts', 9);
@@ -23,7 +35,6 @@ function bot_shield_enqueue_scripts() {
         // Add our scripts to footer with proper type="module"
         add_action('admin_footer', function() use ($plugin_dir_url) {
             ?>
-            <!-- <script type="module" src="<?php echo $plugin_dir_url; ?>dist/browser/polyfills.js?ver=1.0.0"></script> -->
             <script>
                 // Add REST API nonce to window object
                 window.wpRestNonce = '<?php echo wp_create_nonce('wp_rest'); ?>';
@@ -41,7 +52,10 @@ function bot_shield_enqueue_scripts() {
         );
     }
 }
+
+// Hook into both admin and frontend script enqueueing
 add_action('admin_enqueue_scripts', 'bot_shield_enqueue_scripts');
+add_action('wp_enqueue_scripts', 'bot_shield_enqueue_scripts');
 
 // Add settings link to plugins page
 function bot_shield_add_settings_link($links) {
