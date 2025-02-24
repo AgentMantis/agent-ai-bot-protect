@@ -1,9 +1,10 @@
+// @import '../../styles/variables';
+
 header {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
-  
 }
 
 .main-container {
@@ -18,6 +19,11 @@ header {
   padding-top: 0;
 }
 
+.container {
+  display: flex;
+  gap: 0;
+  margin-top: 30px;
+}
 
 footer {
   background-color: #f1f1f1;
@@ -39,7 +45,6 @@ footer {
 
 .nav-menu {
   list-style-type: none;
- 
   padding: 0;
   padding-left:16px;
   display: flex;
@@ -64,8 +69,6 @@ footer {
 }
 
 .nav-menu a.active {
-  
   color: #000;
   background-color: #e0e0e0;
-  
 }
