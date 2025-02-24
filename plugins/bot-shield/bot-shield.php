@@ -80,6 +80,15 @@ function bot_shield_register_routes() {
             return current_user_can('manage_options');
         }
     ]);
+
+    // New endpoint for log analysis
+    register_rest_route('bot-shield/v1', '/analyze-logs', [
+        'methods' => 'GET',
+        'callback' => 'bot_shield_analyze_logs',
+        'permission_callback' => function() {
+            return current_user_can('manage_options');
+        }
+    ]);
 }
 add_action('rest_api_init', 'bot_shield_register_routes');
 
@@ -126,4 +135,71 @@ function bot_shield_save_robots_txt($request) {
         'message' => 'robots.txt file updated successfully',
         'bytes_written' => $result
     ];
+}
+
+// Register REST API endpoints
+add_action('rest_api_init', function () {
+    register_rest_route('bot-shield/v1', '/analyze-logs', array(
+        'methods' => 'GET',
+        'callback' => 'bot_shield_analyze_logs',
+        'permission_callback' => function () {
+            return current_user_can('manage_options');
+        }
+    ));
+});
+
+function bot_shield_analyze_logs() {
+    // Get access to WordPress database
+    global $wpdb;
+    
+    // Query to get total requests (last 30 days)
+    $total_requests = $wpdb->get_var(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
+         WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    );
+
+    // Query to get bot requests
+    $bot_requests = $wpdb->get_var(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
+         WHERE is_bot = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    );
+
+    // Query to get detected bots and their counts
+    $detected_bots = $wpdb->get_results(
+        "SELECT bot_name, COUNT(*) as count 
+         FROM {$wpdb->prefix}bot_shield_logs 
+         WHERE is_bot = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+         GROUP BY bot_name"
+    );
+
+    // Query to get recent bot visits
+    $recent_visits = $wpdb->get_results(
+        "SELECT bot_name as bot, timestamp as time, user_agent 
+         FROM {$wpdb->prefix}bot_shield_logs 
+         WHERE is_bot = 1 
+         ORDER BY timestamp DESC 
+         LIMIT 10"
+    );
+
+    // Format the response
+    $response = array(
+        'success' => true,
+        'data' => array(
+            'total_requests' => (int)$total_requests,
+            'bot_requests' => (int)$bot_requests,
+            'detected_bots' => array_reduce($detected_bots, function($carry, $item) {
+                $carry[$item->bot_name] = (int)$item->count;
+                return $carry;
+            }, array()),
+            'recent_bot_visits' => array_map(function($visit) {
+                return array(
+                    'bot' => $visit->bot,
+                    'time' => $visit->time,
+                    'user_agent' => $visit->user_agent
+                );
+            }, $recent_visits)
+        )
+    );
+
+    return rest_ensure_response($response);
 } 

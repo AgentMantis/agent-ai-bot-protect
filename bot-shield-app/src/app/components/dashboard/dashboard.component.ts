@@ -2,21 +2,20 @@ import { Component, OnInit, AfterViewInit, ViewChild, ElementRef } from '@angula
 import { Chart, registerables } from 'chart.js';
 import { MatCardModule } from '@angular/material/card';
 import { CommonModule } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
+import { BotAnalysisService, BotAnalysisResponse } from '../../services/bot-analysis.service';
 
 // Register Chart.js components
 Chart.register(...registerables);
-
-interface BotTrafficData {
-  userAgent: string;
-  hitCount: number;
-}
 
 @Component({
   selector: 'app-dashboard',
   imports: [
     CommonModule,
-    MatCardModule
+    MatCardModule,
+    HttpClientModule
   ],
+  providers: [BotAnalysisService],
   standalone: true,
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
@@ -25,51 +24,55 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   @ViewChild('botChart') private chartRef!: ElementRef;
   private chart: Chart | undefined;
 
-  // Sample bot traffic data
-  private botTrafficData: BotTrafficData[] = [
-    { userAgent: 'Googlebot', hitCount: 150 },
-    { userAgent: 'Bingbot', hitCount: 80 },
-    { userAgent: 'YandexBot', hitCount: 45 },
-    { userAgent: 'DuckDuckBot', hitCount: 30 },
-    { userAgent: 'Unknown Bot', hitCount: 95 }
-  ];
+  constructor(private botAnalysisService: BotAnalysisService) {}
 
   ngOnInit() {
-    // Remove chart creation from here
+    this.loadBotData();
   }
 
   ngAfterViewInit() {
-    console.log('View initialized');
-    // Add setTimeout back to ensure view is ready
-    setTimeout(() => {
-      this.createChart();
-    }, 0);
+    // Initial chart will be updated when data loads
+    this.createChart([]);
   }
 
-  private createChart() {
-    console.log('Creating chart...');
+  private loadBotData() {
+    this.botAnalysisService.analyzeLogs().subscribe({
+      next: (response) => {
+        if (response.success && response.data.detected_bots) {
+          // Convert detected_bots object to array format for chart
+          const botData = Object.entries(response.data.detected_bots).map(([name, count]) => ({
+            userAgent: name,
+            hitCount: count
+          }));
+          this.updateChart(botData);
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load bot data:', err);
+      }
+    });
+  }
+
+  private createChart(initialData: { userAgent: string; hitCount: number }[] = []) {
     if (!this.chartRef) {
       console.error('Chart reference not found');
       return;
     }
     
     const canvas = this.chartRef.nativeElement as HTMLCanvasElement;
-    
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       console.error('Could not get 2D context');
       return;
     }
-
-    console.log('Bot traffic data:', this.botTrafficData);
     
     this.chart = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: this.botTrafficData.map(data => data.userAgent),
+        labels: initialData.map(data => data.userAgent),
         datasets: [{
           label: 'Number of Hits',
-          data: this.botTrafficData.map(data => data.hitCount),
+          data: initialData.map(data => data.hitCount),
           backgroundColor: [
             'rgba(54, 162, 235, 0.6)',
             'rgba(255, 99, 132, 0.6)',
@@ -107,7 +110,16 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         }
       }
     });
+  }
 
-    console.log('Chart created:', this.chart);
+  private updateChart(botData: { userAgent: string; hitCount: number }[]) {
+    if (!this.chart) {
+      this.createChart(botData);
+      return;
+    }
+
+    this.chart.data.labels = botData.map(data => data.userAgent);
+    this.chart.data.datasets[0].data = botData.map(data => data.hitCount);
+    this.chart.update();
   }
 }
