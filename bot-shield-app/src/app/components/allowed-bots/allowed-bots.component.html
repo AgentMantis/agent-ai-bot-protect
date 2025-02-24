@@ -21,7 +21,7 @@
             [title]="bot"
             (click)="toggleBot(bot)">
             <span class="checkmark" [class.selected]="selectedBots[bot]">
-              {{ selectedBots[bot] ? '✕' : '✓' }}
+              {{ selectedBots[bot] ? '✖' : '✔' }}
             </span>
             <span>{{ bot }}</span>
           </button>
