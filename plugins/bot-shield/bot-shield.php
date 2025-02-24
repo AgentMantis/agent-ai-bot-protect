@@ -15,14 +15,37 @@ function bot_shield_enqueue_scripts() {
 
     // Check if we're NOT in admin
     if (!is_admin()) {
-        // Enqueue analytics script only for frontend
+        // Add immediate capture of critical data
+        add_action('wp_head', function() {
+            ?>
+            <script>
+                // Create temporary storage for initial page load data
+                window._botShieldInitialData = {
+                    userAgent: navigator.userAgent,
+                    timestamp: new Date().getTime(),
+                    referrer: document.referrer
+                    // Add any other critical initial data you need
+                };
+            </script>
+            <?php
+        }, 1);
+
+        // Enqueue main analytics script
         wp_enqueue_script(
             'bot-shield-analytics',
             $plugin_dir_url . 'bot-shield-analytics.js',
-            array(), // no dependencies
+            array(), 
             '1.0.0',
-            true // load in footer
+            true 
         );
+        
+        // Add async attribute to the script
+        add_filter('script_loader_tag', function($tag, $handle) {
+            if ('bot-shield-analytics' === $handle) {
+                return str_replace(' src', ' async src', $tag);
+            }
+            return $tag;
+        }, 10, 2);
     }
 
     // Only load admin-specific scripts on our admin page
@@ -102,6 +125,30 @@ function bot_shield_register_routes() {
         'permission_callback' => function() {
             return current_user_can('manage_options');
         }
+    ]);
+
+    // Add this to your bot_shield_register_routes function
+    register_rest_route('bot-shield/v1', '/log-visit', [
+        'methods' => 'POST',
+        'callback' => 'bot_shield_log_visit',
+        'permission_callback' => '__return_true', // Allow public access
+        'args' => [
+            'userAgent' => [
+                'required' => true,
+                'type' => 'string'
+            ],
+            'timestamp' => [
+                'required' => true
+            ],
+            'referrer' => [
+                'required' => false,
+                'type' => 'string'
+            ],
+            'url' => [
+                'required' => true,
+                'type' => 'string'
+            ]
+        ]
     ]);
 }
 add_action('rest_api_init', 'bot_shield_register_routes');
@@ -216,4 +263,59 @@ function bot_shield_analyze_logs() {
     );
 
     return rest_ensure_response($response);
-} 
+}
+
+// Add this function to handle the logging
+function bot_shield_log_visit($request) {
+    global $wpdb;
+    
+    $data = $request->get_params();
+    
+    // Basic bot detection (you can make this more sophisticated)
+    $is_bot = preg_match('/bot|crawl|spider|slurp|search|agent/i', $data['userAgent']) ? 1 : 0;
+    
+    // Insert into your logs table
+    $result = $wpdb->insert(
+        $wpdb->prefix . 'bot_shield_logs',
+        [
+            'user_agent' => $data['userAgent'],
+            'timestamp' => date('Y-m-d H:i:s', $data['timestamp'] / 1000),
+            'referrer' => $data['referrer'],
+            'url' => $data['url'],
+            'is_bot' => $is_bot,
+            'bot_name' => $is_bot ? extract_bot_name($data['userAgent']) : null,
+            // Add additional fields as needed
+        ],
+        ['%s', '%s', '%s', '%s', '%d', '%s']
+    );
+
+    return rest_ensure_response([
+        'success' => ($result !== false),
+        'is_bot' => $is_bot
+    ]);
+}
+
+// Helper function to extract bot name
+function extract_bot_name($user_agent) {
+    if (preg_match('/(?:bot|crawl|slurp|spider|search|agent)(?:\s*|\/)([^\s;)]*)/i', $user_agent, $matches)) {
+        return $matches[1] ?: 'Unknown Bot';
+    }
+    return 'Unknown Bot';
+}
+
+// Add this new function to handle CORS
+function bot_shield_add_cors_headers() {
+    header('Access-Control-Allow-Origin: ' . esc_url_raw(site_url()));
+    header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept');
+    
+    if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+        status_header(200);
+        exit();
+    }
+}
+add_action('rest_api_init', function() {
+    remove_filter('rest_pre_serve_request', 'rest_send_cors_headers');
+    add_filter('rest_pre_serve_request', 'bot_shield_add_cors_headers');
+}, 15); 
