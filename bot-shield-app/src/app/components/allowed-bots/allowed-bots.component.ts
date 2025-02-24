@@ -77,7 +77,7 @@ export class AllowedBotsComponent implements OnInit {
     };
   }
 
-  updatePreview() {
+  updateRobotsTxt() {
     const blockedBots = Object.keys(this.selectedBots).filter(bot => this.selectedBots[bot]);
     this.generatedRobotsTxt = blockedBots.map(bot => `User-agent: ${bot}\nDisallow: /`).join('\n\n');
   }
@@ -142,7 +142,7 @@ export class AllowedBotsComponent implements OnInit {
                                 }
                             });
 
-                            this.updatePreview();
+                            this.updateRobotsTxt();
                         } else {
                             console.log('No BotShield section found in robots.txt');
                             console.log('robots.txt content:', robotsTxt);
@@ -187,8 +187,7 @@ export class AllowedBotsComponent implements OnInit {
     }).subscribe({
         next: (response: any) => {
             console.log('robots.txt saved successfully:', response);
-            this.generatedRobotsTxt = content; // Update the preview
-            this.fetchRobotsTxt(); // Refresh the form to ensure it's in sync
+            this.generatedRobotsTxt = content; // Update the display
         },
         error: (error) => {
             console.error('Error saving robots.txt:', error);
@@ -197,5 +196,29 @@ export class AllowedBotsComponent implements OnInit {
             }
         }
     });
+  }
+
+  // Add this method to generate and save robots.txt content
+  generateAndSaveRobotsTxt() {
+    // Generate your robots.txt content based on your allowed bots
+    const robotsTxtContent = this.generateRobotsTxtContent(); // Implement this method based on your needs
+    
+    // Save the generated content
+    this.saveRobotsTxt(robotsTxtContent);
+  }
+
+  private generateRobotsTxtContent(): string {
+    // Example implementation - adjust according to your data structure
+    let content = 'User-agent: *\n';
+    content += 'Disallow: /wp-admin/\n';
+    content += 'Allow: /wp-admin/admin-ajax.php\n\n';
+
+    // Add allowed bots
+    this.botList.forEach(bot => {
+      content += `User-agent: ${bot}\n`;
+      content += 'Allow: /\n\n';
+    });
+
+    return content;
   }
 }
