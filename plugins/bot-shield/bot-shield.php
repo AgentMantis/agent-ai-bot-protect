@@ -85,7 +85,6 @@ add_action('rest_api_init', 'bot_shield_register_routes');
 
 // Handle saving robots.txt file
 function bot_shield_save_robots_txt($request) {
-    // Get the content from the request
     $content = $request->get_param('content');
     
     if (!$content) {
@@ -93,20 +92,35 @@ function bot_shield_save_robots_txt($request) {
         return new WP_Error('no_content', 'No content provided', ['status' => 400]);
     }
 
-    // Get path to robots.txt in WordPress root directory
+    // Get path to robots.txt
     $robots_path = ABSPATH . 'robots.txt';
-    error_log('Bot Shield: Attempting to write to ' . $robots_path);
-    error_log('Bot Shield: Content to write: ' . $content);
+    
+    // Read existing content
+    $existing_content = '';
+    if (file_exists($robots_path)) {
+        $existing_content = file_get_contents($robots_path);
+    }
 
-    // Try to write the file
-    $result = file_put_contents($robots_path, $content);
+    // Remove old BotShield section if it exists
+    $pattern = '/# Begin BotShield.*# End BotShield\n*/s';
+    $existing_content = preg_replace($pattern, '', $existing_content);
+
+    // Prepare new BotShield section
+    $new_section = "# Begin BotShield\n";
+    $new_section .= $content . "\n";
+    $new_section .= "# End BotShield\n";
+
+    // Combine content
+    $final_content = trim($existing_content . "\n" . $new_section) . "\n";
+
+    // Write the file
+    $result = file_put_contents($robots_path, $final_content);
     
     if ($result === false) {
-        error_log('Bot Shield: Failed to write robots.txt file. Check permissions.');
+        error_log('Bot Shield: Failed to write robots.txt file');
         return new WP_Error('write_failed', 'Failed to write robots.txt file', ['status' => 500]);
     }
 
-    error_log('Bot Shield: Successfully wrote ' . $result . ' bytes to robots.txt');
     return [
         'success' => true,
         'message' => 'robots.txt file updated successfully',
