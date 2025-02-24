@@ -1,20 +1,29 @@
-.dashboard-container {
+.container {
+  display: flex;
+  gap: 0;
+  margin-top: 30px;
+}
+
+.panel-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  border: 1px solid #d8d8d8;
+  background-color: #F4F3F6;
   padding: 20px;
+}
 
-  .chart-card {
-    margin: 20px;
-    padding: 20px;
 
-    .chart-container {
-      position: relative;
-      height: 400px;
-      width: 100%;
-      margin: 20px 0;
 
-      canvas {
-        width: 100% !important;
-        height: 400px !important;
-      }
-    }
+
+.chart-container {
+  position: relative;
+  height: 400px;
+  width: 100%;
+  margin: 20px 0;
+
+  canvas {
+    width: 100% !important;
+    height: 400px !important;
   }
-} 
+}

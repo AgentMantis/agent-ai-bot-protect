@@ -9,16 +9,11 @@
   flex: 1;
   border: 1px solid #d8d8d8;
   background-color: #F4F3F6;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
-  
 }
 
 .robots-form {
   flex: 1 1 70%;
   padding: 20px;
-  
-  border-radius: 8px 0 0 8px;
 }
 
 .output-panel {
@@ -26,7 +21,7 @@
   padding: 20px;
   background-color: #e2e2e3;
   overflow-y: auto;
-  border-radius: 0 8px 8px 0;
+  
 }
 
 .output-header {
