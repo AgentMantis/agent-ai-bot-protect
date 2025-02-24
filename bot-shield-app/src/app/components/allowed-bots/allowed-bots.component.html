@@ -14,9 +14,15 @@
       <div class="bot-list" *ngIf="botList.length">
         <h2>Select Bots to Block</h2>
         <div class="checkbox-group">
-          <mat-checkbox *ngFor="let bot of botList" [(ngModel)]="selectedBots[bot]" [name]="bot" (change)="updateRobotsTxt()">
-            {{ bot }}
-          </mat-checkbox>
+          <button 
+            *ngFor="let bot of botList" 
+            class="bot-select-button" 
+            [class.selected]="selectedBots[bot]"
+            [title]="bot"
+            (click)="toggleBot(bot)">
+            <span class="checkmark" *ngIf="selectedBots[bot]">✓</span>
+            <span>{{ bot }}</span>
+          </button>
         </div>
       </div>
     </form>

@@ -221,4 +221,9 @@ export class AllowedBotsComponent implements OnInit {
 
     return content;
   }
+
+  toggleBot(bot: string) {
+    this.selectedBots[bot] = !this.selectedBots[bot];
+    this.updateRobotsTxt();
+  }
 }

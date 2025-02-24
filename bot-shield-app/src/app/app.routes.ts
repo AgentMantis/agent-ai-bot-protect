@@ -9,7 +9,6 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent),
-    pathMatch: 'full'
   },
   { 
     path: 'settings', 
