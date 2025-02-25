@@ -37,7 +37,7 @@ import { MatIconModule } from '@angular/material/icon';
           matSuffix 
           (click)="resetToDefault()"
           matTooltip="Reset to default">
-          <mat-icon>refresh</mat-icon>
+          <mat-icon>save</mat-icon>
         </button>
       </mat-form-field>
 
