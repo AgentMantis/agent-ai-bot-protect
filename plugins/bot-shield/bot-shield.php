@@ -157,11 +157,9 @@ add_action('rest_api_init', 'bot_shield_register_routes');
 function bot_shield_save_robots_txt($request) {
     $content = $request->get_param('content');
     
-    if (!$content) {
-        error_log('Bot Shield: No content provided in request');
-        return new WP_Error('no_content', 'No content provided', ['status' => 400]);
-    }
-
+    // Debug logging
+    error_log('Bot Shield: Received request params - content: ' . var_export($content, true));
+    
     // Get path to robots.txt
     $robots_path = ABSPATH . 'robots.txt';
     
@@ -175,13 +173,19 @@ function bot_shield_save_robots_txt($request) {
     $pattern = '/# Begin BotShield.*# End BotShield\n*/s';
     $existing_content = preg_replace($pattern, '', $existing_content);
 
-    // Prepare new BotShield section
-    $new_section = "# Begin BotShield\n";
-    $new_section .= $content . "\n";
-    $new_section .= "# End BotShield\n";
+    // If content is empty, just save without BotShield section
+    if (empty($content)) {
+        $final_content = trim($existing_content) . "\n";
+        error_log('Bot Shield: Clearing BotShield section. Final content: ' . var_export($final_content, true));
+    } else {
+        // Prepare new BotShield section
+        $new_section = "# Begin BotShield\n";
+        $new_section .= $content . "\n";
+        $new_section .= "# End BotShield\n";
 
-    // Combine content
-    $final_content = trim($existing_content . "\n" . $new_section) . "\n";
+        // Combine content
+        $final_content = trim($existing_content . "\n" . $new_section) . "\n";
+    }
 
     // Write the file
     $result = file_put_contents($robots_path, $final_content);
@@ -194,7 +198,8 @@ function bot_shield_save_robots_txt($request) {
     return [
         'success' => true,
         'message' => 'robots.txt file updated successfully',
-        'bytes_written' => $result
+        'bytes_written' => $result,
+        'final_content' => $final_content
     ];
 }
 

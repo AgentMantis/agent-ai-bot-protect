@@ -79,7 +79,10 @@ export class AllowedBotsComponent implements OnInit {
 
   updateRobotsTxt() {
     const blockedBots = Object.keys(this.selectedBots).filter(bot => this.selectedBots[bot]);
-    this.generatedRobotsTxt = blockedBots.map(bot => `User-agent: ${bot}\nDisallow: /`).join('\n\n');
+    // Always set generatedRobotsTxt, even if empty
+    this.generatedRobotsTxt = blockedBots.length > 0 
+        ? blockedBots.map(bot => `User-agent: ${bot}\nDisallow: /`).join('\n\n')
+        : '';
   }
 
   fetchRobotsTxt() {
@@ -160,7 +163,6 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   commitRobotsTxt() {
-    // Generate new sections for selected bots
     const selectedBotNames = Object.entries(this.selectedBots)
         .filter(([_, selected]) => selected)
         .map(([botName]) => botName);
@@ -168,19 +170,25 @@ export class AllowedBotsComponent implements OnInit {
     const botSections = selectedBotNames
         .map(bot => `User-agent: ${bot}\nDisallow: /`);
 
-    // Combine sections
     const newContent = botSections.join('\n\n');
     
-    // Save the content (PHP will handle wrapping it in BotShield comments)
+    // Always save, even if content is empty string
     this.saveRobotsTxt(newContent);
+    // Update the display
+    this.generatedRobotsTxt = newContent;
   }
 
   saveRobotsTxt(content: string) {
     const endpoint = '/wp-json/bot-shield/v1/save-robots-txt';
     
-    console.log('Attempting to save robots.txt with content:', content);
+    // If content is empty, send a clear flag to indicate intentional clearing
+    const payload = content === '' 
+        ? { content: '', clear: true }  // Add clear flag when intentionally empty
+        : { content };
     
-    return this.http.post(endpoint, { content }, {
+    console.log('Attempting to save robots.txt with payload:', payload);
+    
+    return this.http.post(endpoint, payload, {
         headers: {
             'X-WP-Nonce': (window as any).wpRestNonce
         }
@@ -225,5 +233,7 @@ export class AllowedBotsComponent implements OnInit {
   toggleBot(bot: string) {
     this.selectedBots[bot] = !this.selectedBots[bot];
     this.updateRobotsTxt();
+    // Commit changes immediately when a bot is toggled
+    this.commitRobotsTxt();
   }
 }
