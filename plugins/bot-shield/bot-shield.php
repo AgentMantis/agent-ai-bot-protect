@@ -93,17 +93,17 @@ function bot_shield_add_admin_menu() {
     add_menu_page(
         'Bot Shield',         // Page title
         'Bot Shield',         // Menu title
-        'manage_options',         // Capability
-        'bot-shield',             // Menu slug
-        function() {              // Callback function
+        'manage_options',     // Capability
+        'bot-shield',         // Menu slug
+        function() {          // Callback function
             ?>
             <div class="wrap mat-typography">
                 <bot-shield></bot-shield>
             </div>
             <?php
         },
-        'dashicons-shield',       // Icon
-        30                        // Position
+        plugin_dir_url(__FILE__) . 'dist/assets/botshieldus-icon.svg', // Path to your SVG or image
+        30                    // Position
     );
 }
 add_action('admin_menu', 'bot_shield_add_admin_menu');
@@ -323,4 +323,17 @@ function bot_shield_add_cors_headers() {
 add_action('rest_api_init', function() {
     remove_filter('rest_pre_serve_request', 'rest_send_cors_headers');
     add_filter('rest_pre_serve_request', 'bot_shield_add_cors_headers');
-}, 15); 
+}, 15);
+
+function bot_shield_admin_styles() {
+    echo '
+    <style>
+        #toplevel_page_bot-shield .wp-menu-image img {
+            height: 25px;
+            margin-top: -5px;
+            margin-left: 8px;
+        }
+    </style>
+    ';
+}
+add_action('admin_head', 'bot_shield_admin_styles'); 
