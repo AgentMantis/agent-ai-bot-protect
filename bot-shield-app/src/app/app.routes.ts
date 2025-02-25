@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { AllowedBotsComponent } from './components/allowed-bots/allowed-bots.component';
+import { SettingsComponent } from './components/settings/settings.component';
 
 export const routes: Routes = [
   {
@@ -12,7 +14,7 @@ export const routes: Routes = [
   },
   { 
     path: 'settings', 
-    loadComponent: () => import('./components/settings/settings.component').then(m => m.SettingsComponent)
+    component: SettingsComponent
   },
   { 
     path: 'allowed-bots', 

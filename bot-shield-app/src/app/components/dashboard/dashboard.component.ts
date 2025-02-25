@@ -2,7 +2,7 @@ import { Component, OnInit, AfterViewInit, ViewChild, ElementRef } from '@angula
 import { Chart, registerables } from 'chart.js';
 import { MatCardModule } from '@angular/material/card';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
+
 import { BotAnalysisService, BotAnalysisResponse } from '../../services/bot-analysis.service';
 
 // Register Chart.js components
@@ -13,7 +13,7 @@ Chart.register(...registerables);
   imports: [
     CommonModule,
     MatCardModule,
-    HttpClientModule
+    
   ],
   providers: [BotAnalysisService],
   standalone: true,

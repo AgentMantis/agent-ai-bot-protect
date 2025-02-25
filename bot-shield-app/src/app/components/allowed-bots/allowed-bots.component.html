@@ -1,16 +1,6 @@
 
   <div class="panel-container">
     <form class="robots-form">
-      <div class="url-input">
-        <label for="robotsTxtUrl">robots.txt URL:</label>
-        <input 
-          type="text" 
-          id="robotsTxtUrl" 
-          name="robotsTxtUrl"
-          [(ngModel)]="robotsTxtUrl"
-          placeholder="Enter robots.txt URL">
-      </div>
-      
       <div class="bot-list" *ngIf="botList.length">
         <h2>Select Bots to Block</h2>
         <div class="checkbox-group">

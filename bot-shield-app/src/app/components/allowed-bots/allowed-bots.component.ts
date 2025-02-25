@@ -1,15 +1,16 @@
 import { Component, OnInit, ElementRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { SettingsService } from '../../services/settings.service';
+
 @Component({
   selector: 'app-allowed-bots',
   imports: [
     CommonModule,
     RouterModule,
-    HttpClientModule,
     MatCheckboxModule,
     FormsModule
   ],
@@ -19,15 +20,19 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 })
 
 export class AllowedBotsComponent implements OnInit {
-  robotsTxtUrl = 'assets/robots.txt';
   botList: string[] = [];
   selectedBots: { [key: string]: boolean } = {};
   generatedRobotsTxt = '';
 
-  constructor(private http: HttpClient, private el: ElementRef, private renderer: Renderer2) {}
+  constructor(
+    private http: HttpClient,
+    private el: ElementRef,
+    private renderer: Renderer2,
+    private settingsService: SettingsService
+  ) {}
 
   ngOnInit() {
-    this.fetchRobotsTxt();
+    this.loadBots();
     this.setupDivider();
   }
 
@@ -85,81 +90,64 @@ export class AllowedBotsComponent implements OnInit {
         : '';
   }
 
-  fetchRobotsTxt() {
-    // First fetch the bot list from assets
-    this.http.get(this.robotsTxtUrl, { responseType: 'text' })
-        .subscribe({
-            next: (content) => {
-                // Parse the robots.txt content to extract bot names
-                const userAgentLines = content.split('\n')
-                    .filter(line => line.trim().startsWith('User-agent:'));
-                
-                this.botList = userAgentLines.map(line => 
-                    line.replace('User-agent:', '').trim()
-                );
+  private loadBots() {
+    // Get the robots.txt content directly from the service
+    this.settingsService.getRobotsTxtContent().subscribe({
+      next: (content) => {
+        // Parse the robots.txt content to extract bot names
+        const userAgentLines = content.split('\n')
+          .filter(line => line.trim().startsWith('User-agent:'));
+        
+        this.botList = userAgentLines.map(line => 
+          line.replace('User-agent:', '').trim()
+        );
 
-                // Initialize selectedBots object to false
-                this.botList.forEach(bot => {
-                    this.selectedBots[bot] = false;
-                });
-
-                // Now fetch the actual robots.txt from WordPress root with cache busting
-                const timestamp = new Date().getTime();
-                this.http.get(`/robots.txt?t=${timestamp}`, { 
-                    responseType: 'text',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache'
-                    }
-                }).subscribe({
-                    next: (robotsTxt) => {
-                        console.log('Fetched robots.txt:', robotsTxt);
-                        
-                        // Modified regex pattern to be more flexible with whitespace
-                        const botShieldMatch = robotsTxt.match(/# Begin BotShield\s*([\s\S]*?)\s*# End BotShield/);
-                        
-                        if (botShieldMatch && botShieldMatch[1]) {
-                            console.log('Found BotShield section:', botShieldMatch[1]);
-                            const botShieldContent = botShieldMatch[1].trim();
-                            
-                            // Split into individual bot sections and filter out empty strings
-                            const sections = botShieldContent.split(/\n\s*\n/).filter(Boolean);
-                            console.log('Parsed sections:', sections);
-                            
-                            sections.forEach(section => {
-                                // More flexible regex patterns
-                                const userAgentMatch = section.match(/User-agent:\s*([^\n]+)/i);
-                                const disallowMatch = section.match(/Disallow:\s*([^\n]+)/i);
-
-                                if (userAgentMatch && disallowMatch) {
-                                    const botName = userAgentMatch[1].trim();
-                                    const disallowValue = disallowMatch[1].trim();
-
-                                    console.log('Found bot:', botName, 'Disallow:', disallowValue);
-
-                                    // If this bot is in our list and has Disallow: /, mark it as selected
-                                    if (this.botList.includes(botName) && disallowValue === '/') {
-                                        console.log('Selecting bot:', botName);
-                                        this.selectedBots[botName] = true;
-                                    }
-                                }
-                            });
-
-                            this.updateRobotsTxt();
-                        } else {
-                            console.log('No BotShield section found in robots.txt');
-                            console.log('robots.txt content:', robotsTxt);
-                        }
-                    },
-                    error: (error) => {
-                        console.error('Error fetching current robots.txt:', error);
-                    }
-                });
-            },
-            error: (error) => {
-                console.error('Error fetching bot list:', error);
-            }
+        // Initialize selectedBots object to false
+        this.botList.forEach(bot => {
+          this.selectedBots[bot] = false;
         });
+
+        // Now fetch the actual robots.txt from WordPress root
+        this.loadCurrentBlockedBots();
+      },
+      error: (error) => console.error('Error fetching bot list:', error)
+    });
+  }
+
+  private loadCurrentBlockedBots() {
+    const timestamp = new Date().getTime();
+    this.http.get(`/robots.txt?t=${timestamp}`, { 
+      responseType: 'text',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    }).subscribe({
+      next: (robotsTxt) => {
+        const botShieldMatch = robotsTxt.match(/# Begin BotShield\s*([\s\S]*?)\s*# End BotShield/);
+        if (botShieldMatch && botShieldMatch[1]) {
+          const botShieldContent = botShieldMatch[1].trim();
+          const sections = botShieldContent.split(/\n\s*\n/).filter(Boolean);
+          
+          sections.forEach(section => {
+            const userAgentMatch = section.match(/User-agent:\s*([^\n]+)/i);
+            const disallowMatch = section.match(/Disallow:\s*([^\n]+)/i);
+
+            if (userAgentMatch && disallowMatch) {
+              const botName = userAgentMatch[1].trim();
+              const disallowValue = disallowMatch[1].trim();
+
+              if (this.botList.includes(botName) && disallowValue === '/') {
+                this.selectedBots[botName] = true;
+              }
+            }
+          });
+
+          this.updateRobotsTxt();
+        }
+      },
+      error: (error) => console.error('Error fetching current robots.txt:', error)
+    });
   }
 
   commitRobotsTxt() {
