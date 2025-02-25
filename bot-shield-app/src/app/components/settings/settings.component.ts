@@ -43,7 +43,7 @@ import { MatIconModule } from '@angular/material/icon';
 
       <div class="help-text">
         This URL specifies where to load the list of known bots from.
-        The default value is 'assets/robots.txt'.
+        The default value is &quot;assets/robots.txt&quot;.
       </div>
     </div>
   `,

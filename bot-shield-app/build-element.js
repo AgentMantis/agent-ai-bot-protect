@@ -71,6 +71,13 @@ const rollup = require('rollup');
       /["'](\.?\/?)?assets\//g,
       '"/wp-content/plugins/bot-shield/dist/assets/'
     );
+
+    // Replace URLs in the /media/ path
+    jsContent = jsContent.replace(
+      /url\(["']?\.\/media\/(.*?)["']?\)/g,
+      'url("/wp-content/plugins/bot-shield/dist/media/$1")'
+    );
+
     await fs.writeFile(jsFilePath, jsContent);
     console.log('JS asset paths updated successfully!');
 
@@ -90,6 +97,13 @@ const rollup = require('rollup');
       overwrite: true
     });
     console.log('Assets directory copied successfully!');
+
+    // Copy media directory
+    const mediaPath = path.join(distPath, 'media');
+    await fs.copy(mediaPath, path.join(wpPluginPath, 'media'), {
+      overwrite: true
+    });
+    console.log('Media directory copied successfully!');
 
     console.log('Build completed successfully!');
   } catch (error) {
