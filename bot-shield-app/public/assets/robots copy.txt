@@ -1,0 +1,93 @@
+# AI2 Research Institute's web crawler
+User-agent: AI2Bot
+# AI2's Dolma dataset collection crawler
+User-agent: Ai2Bot-Dolma
+# Amazon's web crawler for various services
+User-agent: Amazonbot
+# Anthropic's web crawler for AI training
+User-agent: anthropic-ai
+# Apple's web crawler for Siri and other services
+User-agent: Applebot
+# Extended version of Apple's web crawler
+User-agent: Applebot-Extended
+# Brightbot web crawler
+User-agent: Brightbot 1.0
+# ByteDance/TikTok's web crawler
+User-agent: Bytespider
+# Common Crawl bot for building web archives
+User-agent: CCBot
+# OpenAI's ChatGPT web browser
+User-agent: ChatGPT-User
+# Anthropic's Claude AI web browser
+User-agent: Claude-Web
+# Anthropic's Claude AI crawler
+User-agent: ClaudeBot
+# Cohere AI's web crawler
+User-agent: cohere-ai
+# Cohere's training data collection crawler
+User-agent: cohere-training-data-crawler
+# General purpose web crawler
+User-agent: Crawlspace
+# Diffbot's web scraping and analysis bot
+User-agent: Diffbot
+# DuckDuckGo's AI assistant crawler
+User-agent: DuckAssistBot
+# Facebook's web crawler
+User-agent: FacebookBot
+# Generic friendly crawler
+User-agent: FriendlyCrawler
+# Extended Google crawler for additional services
+User-agent: Google-Extended
+# Miscellaneous Google crawler
+User-agent: GoogleOther
+# Google's image crawler (non-standard)
+User-agent: GoogleOther-Image
+# Google's video crawler (non-standard)
+User-agent: GoogleOther-Video
+# OpenAI's GPT training data crawler
+User-agent: GPTBot
+# iAsk search engine crawler
+User-agent: iaskspider/2.0
+# Internet Security Scanner crawler
+User-agent: ICC-Crawler
+# Image collection crawler
+User-agent: ImagesiftBot
+# Dataset collection crawler for ML training
+User-agent: img2dataset
+# Cyber risk assessment crawler
+User-agent: ISSCyberRiskCrawler
+# Kangaroo search engine bot
+User-agent: Kangaroo Bot
+# Meta/Facebook's external content agent
+User-agent: Meta-ExternalAgent
+# Meta/Facebook's external content fetcher
+User-agent: Meta-ExternalFetcher
+# OpenAI's search crawler
+User-agent: OAI-SearchBot
+# Omgili web crawler
+User-agent: omgili
+# Omgili bot for content discovery
+User-agent: omgilibot
+# Chinese search engine crawler
+User-agent: PanguBot
+# Perplexity AI's web crawler
+User-agent: PerplexityBot
+# Chinese search engine Petalbot
+User-agent: PetalBot
+# Python-based web scraping framework
+User-agent: Scrapy
+# Semrush's on-page SEO crawler
+User-agent: SemrushBot-OCOB
+# Semrush's site audit crawler
+User-agent: SemrushBot-SWA
+# Sidetrade's indexing bot
+User-agent: Sidetrade indexer bot
+# Timpi search engine crawler
+User-agent: Timpibot
+# Velen's public web crawler
+User-agent: VelenPublicWebCrawler
+# Extended version of Webzio crawler
+User-agent: Webzio-Extended
+# You.com's web crawler
+User-agent: YouBot
+Disallow: /

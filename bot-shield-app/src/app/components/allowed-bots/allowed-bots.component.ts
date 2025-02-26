@@ -4,7 +4,9 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { SettingsService } from '../../services/settings.service';
+import { Bot } from '../../interfaces/bot.interface';
 
 @Component({
   selector: 'app-allowed-bots',
@@ -12,6 +14,7 @@ import { SettingsService } from '../../services/settings.service';
     CommonModule,
     RouterModule,
     MatCheckboxModule,
+    MatSlideToggleModule,
     FormsModule
   ],
   templateUrl: './allowed-bots.component.html',
@@ -20,8 +23,8 @@ import { SettingsService } from '../../services/settings.service';
 })
 
 export class AllowedBotsComponent implements OnInit {
-  botList: string[] = [];
-  selectedBots: { [key: string]: boolean } = {};
+  botList: Bot[] = [];
+  disallowedBots: { [key: string]: boolean } = {};
   generatedRobotsTxt = '';
 
   constructor(
@@ -83,31 +86,45 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   updateRobotsTxt() {
-    const blockedBots = Object.keys(this.selectedBots).filter(bot => this.selectedBots[bot]);
-    // Always set generatedRobotsTxt, even if empty
+    const blockedBots = Object.keys(this.disallowedBots).filter(bot => this.disallowedBots[bot]);
     this.generatedRobotsTxt = blockedBots.length > 0 
         ? blockedBots.map(bot => `User-agent: ${bot}\nDisallow: /`).join('\n\n')
         : '';
   }
 
   private loadBots() {
-    // Get the robots.txt content directly from the service
     this.settingsService.getRobotsTxtContent().subscribe({
       next: (content) => {
-        // Parse the robots.txt content to extract bot names
-        const userAgentLines = content.split('\n')
-          .filter(line => line.trim().startsWith('User-agent:'));
+        // Parse the robots.txt content to extract bot names and descriptions
+        const lines = content.split('\n');
+        let currentBot: Partial<Bot> = {};
         
-        this.botList = userAgentLines.map(line => 
-          line.replace('User-agent:', '').trim()
-        );
+        this.botList = [];
+        
+        lines.forEach(line => {
+          if (line.startsWith('#')) {
+            currentBot.description = line.substring(1).trim();
+          } else if (line.startsWith('User-agent:')) {
+            if (currentBot.name) {
+              this.botList.push(currentBot as Bot);
+            }
+            currentBot = {
+              name: line.replace('User-agent:', '').trim(),
+              description: ''
+            };
+          }
+        });
+        
+        // Add the last bot
+        if (currentBot.name) {
+          this.botList.push(currentBot as Bot);
+        }
 
-        // Initialize selectedBots object to false
+        // Initialize all bots to allowed (false means not disallowed)
         this.botList.forEach(bot => {
-          this.selectedBots[bot] = false;
+          this.disallowedBots[bot.name] = false;
         });
 
-        // Now fetch the actual robots.txt from WordPress root
         this.loadCurrentBlockedBots();
       },
       error: (error) => console.error('Error fetching bot list:', error)
@@ -137,8 +154,8 @@ export class AllowedBotsComponent implements OnInit {
               const botName = userAgentMatch[1].trim();
               const disallowValue = disallowMatch[1].trim();
 
-              if (this.botList.includes(botName) && disallowValue === '/') {
-                this.selectedBots[botName] = true;
+              if (this.botList.some(bot => bot.name === botName) && disallowValue === '/') {
+                this.disallowedBots[botName] = true;
               }
             }
           });
@@ -151,11 +168,11 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   commitRobotsTxt() {
-    const selectedBotNames = Object.entries(this.selectedBots)
+    const blockedBotNames = Object.entries(this.disallowedBots)
         .filter(([_, selected]) => selected)
         .map(([botName]) => botName);
 
-    const botSections = selectedBotNames
+    const botSections = blockedBotNames
         .map(bot => `User-agent: ${bot}\nDisallow: /`);
 
     const newContent = botSections.join('\n\n');
@@ -211,7 +228,7 @@ export class AllowedBotsComponent implements OnInit {
 
     // Add allowed bots
     this.botList.forEach(bot => {
-      content += `User-agent: ${bot}\n`;
+      content += `User-agent: ${bot.name}\n`;
       content += 'Allow: /\n\n';
     });
 
@@ -219,7 +236,7 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   toggleBot(bot: string) {
-    this.selectedBots[bot] = !this.selectedBots[bot];
+    this.disallowedBots[bot] = !this.disallowedBots[bot];
     this.updateRobotsTxt();
     // Commit changes immediately when a bot is toggled
     this.commitRobotsTxt();

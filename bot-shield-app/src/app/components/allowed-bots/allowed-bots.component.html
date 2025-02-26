@@ -1,30 +1,28 @@
-
-  <div class="panel-container">
-    <form class="robots-form">
-      <div class="bot-list" *ngIf="botList.length">
-        <h2>Select Bots to Block</h2>
-        <div class="checkbox-group">
-          <button 
-            *ngFor="let bot of botList" 
-            class="bot-select-button" 
-            [class.selected]="selectedBots[bot]"
-            [title]="bot"
-            (click)="toggleBot(bot)">
-            <span class="checkmark" [class.selected]="selectedBots[bot]">
-              {{ selectedBots[bot] ? '✖' : '✔' }}
-            </span>
-            <span>{{ bot }}</span>
-          </button>
+<div class="panel-container">
+  <form class="robots-form">
+    <div class="bot-list" *ngIf="botList.length">
+      <h2>Allow/Block Bots</h2>
+      <div class="bot-toggles">
+        <div class="bot-toggle-item" *ngFor="let bot of botList">
+          <mat-slide-toggle
+            [checked]="!disallowedBots[bot.name]"
+            (change)="toggleBot(bot.name)">
+            <div class="bot-info">
+              <span class="bot-name">{{ bot.name }}</span>
+              <span class="bot-description">{{ bot.description || 'Bot description not available' }}</span>
+            </div>
+          </mat-slide-toggle>
         </div>
       </div>
-    </form>
-    <div class="divider"></div>
-    <div class="output-panel">
-      <div class="output-header">
-        <h2>Generated robots.txt</h2>
-        <button type="button" (click)="commitRobotsTxt()">Commit robots.txt</button>
-      </div>
-      <pre>{{ generatedRobotsTxt }}</pre>
     </div>
+  </form>
+  <div class="divider"></div>
+  <div class="output-panel">
+    <div class="output-header">
+      <h2>Generated robots.txt</h2>
+      <button type="button" (click)="commitRobotsTxt()">Commit robots.txt</button>
+    </div>
+    <pre>{{ generatedRobotsTxt }}</pre>
   </div>
+</div>
 
