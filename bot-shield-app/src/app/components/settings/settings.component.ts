@@ -18,50 +18,9 @@ import { MatIconModule } from '@angular/material/icon';
     MatFormFieldModule,
     MatButtonModule,
     MatIconModule,
-    
-  ],
-  template: `
-    <div class="settings-container">
-      <h2>Settings</h2>
-      
-      <mat-form-field class="full-width">
-        <mat-label>Robots.txt URL</mat-label>
-        <input 
-          matInput
-          type="text" 
-          [(ngModel)]="robotsTxtUrl" 
-          placeholder="Enter robots.txt URL"
-          (blur)="updateRobotsTxtUrl()">
-        <button 
-          mat-icon-button 
-          matSuffix 
-          (click)="resetToDefault()"
-          matTooltip="Reset to default">
-          <mat-icon>save</mat-icon>
-        </button>
-      </mat-form-field>
-
-      <div class="help-text">
-        This URL specifies where to load the list of known bots from.
-        The default value is &quot;assets/robots.txt&quot;.
-      </div>
-    </div>
-  `,
-  styles: [`
-    .settings-container {
-      padding: 20px;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    .full-width {
-      width: 100%;
-    }
-    .help-text {
-      color: #666;
-      font-size: 0.9em;
-      margin-top: 8px;
-    }
-  `]
+  ],  
+  templateUrl: './settings.component.html',
+  styleUrls: ['./settings.component.scss']
 })
 export class SettingsComponent implements OnInit {
   robotsTxtUrl: string = '';
