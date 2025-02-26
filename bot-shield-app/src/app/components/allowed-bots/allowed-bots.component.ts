@@ -5,6 +5,9 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
 import { SettingsService } from '../../services/settings.service';
 import { Bot } from '../../interfaces/bot.interface';
 
@@ -15,6 +18,9 @@ import { Bot } from '../../interfaces/bot.interface';
     RouterModule,
     MatCheckboxModule,
     MatSlideToggleModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatIconModule,
     FormsModule
   ],
   templateUrl: './allowed-bots.component.html',
@@ -26,6 +32,8 @@ export class AllowedBotsComponent implements OnInit {
   botList: Bot[] = [];
   disallowedBots: { [key: string]: boolean } = {};
   generatedRobotsTxt = '';
+  searchTerm = '';
+  filteredBotList: Bot[] = [];
 
   constructor(
     private http: HttpClient,
@@ -119,6 +127,9 @@ export class AllowedBotsComponent implements OnInit {
         if (currentBot.name) {
           this.botList.push(currentBot as Bot);
         }
+
+        // Initialize filtered list
+        this.filteredBotList = this.botList;
 
         // Initialize all bots to allowed (false means not disallowed)
         this.botList.forEach(bot => {
@@ -240,5 +251,18 @@ export class AllowedBotsComponent implements OnInit {
     this.updateRobotsTxt();
     // Commit changes immediately when a bot is toggled
     this.commitRobotsTxt();
+  }
+
+  filterBots() {
+    if (!this.searchTerm.trim()) {
+      this.filteredBotList = this.botList;
+      return;
+    }
+    
+    const search = this.searchTerm.toLowerCase();
+    this.filteredBotList = this.botList.filter(bot => 
+      bot.name.toLowerCase().includes(search) || 
+      (bot.description && bot.description.toLowerCase().includes(search))
+    );
   }
 }

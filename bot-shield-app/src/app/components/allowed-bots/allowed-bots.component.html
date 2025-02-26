@@ -2,8 +2,17 @@
   <form class="robots-form">
     <div class="bot-list" *ngIf="botList.length">
       <h2>Allow/Block Bots</h2>
+      <mat-form-field class="search-field" appearance="outline">
+        <mat-label>Search bots</mat-label>
+        <input matInput
+               [(ngModel)]="searchTerm"
+               (ngModelChange)="filterBots()"
+               name="search"
+               placeholder="Search by name or description">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
       <div class="bot-toggles">
-        <div class="bot-toggle-item" *ngFor="let bot of botList">
+        <div class="bot-toggle-item" *ngFor="let bot of filteredBotList">
           <mat-slide-toggle
             [checked]="!disallowedBots[bot.name]"
             (change)="toggleBot(bot.name)">
