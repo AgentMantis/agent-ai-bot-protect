@@ -160,13 +160,11 @@ function bot_shield_save_robots_txt($request) {
     // Debug logging
     error_log('Bot Shield: Received request params - content: ' . var_export($content, true));
     
-    // Get path to robots.txt
-    $robots_path = ABSPATH . 'robots.txt';
-    
     // Read existing content
-    $existing_content = '';
-    if (file_exists($robots_path)) {
-        $existing_content = file_get_contents($robots_path);
+    $existing_content = get_option('bot_shield_robots_txt', '');
+    if (empty($existing_content)) {
+        // Default robots.txt content if none exists
+        $existing_content = "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n";
     }
 
     // Remove old BotShield section if it exists
@@ -187,50 +185,41 @@ function bot_shield_save_robots_txt($request) {
         $final_content = trim($existing_content . "\n" . $new_section) . "\n";
     }
 
-    // Write the file
-    $result = file_put_contents($robots_path, $final_content);
-    
-    if ($result === false) {
-        error_log('Bot Shield: Failed to write robots.txt file');
-        return new WP_Error('write_failed', 'Failed to write robots.txt file', ['status' => 500]);
-    }
+    // Save the final content to WordPress option
+    update_option('bot_shield_robots_txt', $final_content);
 
+    // Return the final content
     return [
         'success' => true,
         'message' => 'robots.txt file updated successfully',
-        'bytes_written' => $result,
         'final_content' => $final_content
     ];
 }
 
-// Register REST API endpoints
-add_action('rest_api_init', function () {
-    register_rest_route('bot-shield/v1', '/analyze-logs', array(
-        'methods' => 'GET',
-        'callback' => 'bot_shield_analyze_logs',
-        'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
-    ));
-});
+// Add this function to serve the robots.txt content
+function bot_shield_serve_robots_txt($robots_txt, $public = 1) {
+    $custom_content = get_option('bot_shield_robots_txt');
+    if (!empty($custom_content)) {
+        return $custom_content;
+    }
+    return $robots_txt;
+}
+add_filter('robots_txt', 'bot_shield_serve_robots_txt');
 
+// Analyze logs
 function bot_shield_analyze_logs() {
-    // Get access to WordPress database
     global $wpdb;
     
-    // Query to get total requests (last 30 days)
     $total_requests = $wpdb->get_var(
         "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
          WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
     );
 
-    // Query to get bot requests
     $bot_requests = $wpdb->get_var(
         "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
          WHERE is_bot = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
     );
 
-    // Query to get detected bots and their counts
     $detected_bots = $wpdb->get_results(
         "SELECT bot_name, COUNT(*) as count 
          FROM {$wpdb->prefix}bot_shield_logs 
@@ -238,7 +227,6 @@ function bot_shield_analyze_logs() {
          GROUP BY bot_name"
     );
 
-    // Query to get recent bot visits
     $recent_visits = $wpdb->get_results(
         "SELECT bot_name as bot, timestamp as time, user_agent 
          FROM {$wpdb->prefix}bot_shield_logs 
@@ -247,7 +235,6 @@ function bot_shield_analyze_logs() {
          LIMIT 10"
     );
 
-    // Format the response
     $response = array(
         'success' => true,
         'data' => array(
@@ -270,16 +257,14 @@ function bot_shield_analyze_logs() {
     return rest_ensure_response($response);
 }
 
-// Add this function to handle the logging
+// Log visit
 function bot_shield_log_visit($request) {
     global $wpdb;
     
     $data = $request->get_params();
     
-    // Basic bot detection (you can make this more sophisticated)
     $is_bot = preg_match('/bot|crawl|spider|slurp|search|agent/i', $data['userAgent']) ? 1 : 0;
     
-    // Insert into your logs table
     $result = $wpdb->insert(
         $wpdb->prefix . 'bot_shield_logs',
         [
@@ -289,7 +274,6 @@ function bot_shield_log_visit($request) {
             'url' => $data['url'],
             'is_bot' => $is_bot,
             'bot_name' => $is_bot ? extract_bot_name($data['userAgent']) : null,
-            // Add additional fields as needed
         ],
         ['%s', '%s', '%s', '%s', '%d', '%s']
     );
@@ -300,7 +284,7 @@ function bot_shield_log_visit($request) {
     ]);
 }
 
-// Helper function to extract bot name
+// Extract bot name
 function extract_bot_name($user_agent) {
     if (preg_match('/(?:bot|crawl|slurp|spider|search|agent)(?:\s*|\/)([^\s;)]*)/i', $user_agent, $matches)) {
         return $matches[1] ?: 'Unknown Bot';
@@ -308,7 +292,7 @@ function extract_bot_name($user_agent) {
     return 'Unknown Bot';
 }
 
-// Add this new function to handle CORS
+// Add CORS headers
 function bot_shield_add_cors_headers() {
     header('Access-Control-Allow-Origin: ' . esc_url_raw(site_url()));
     header('Access-Control-Allow-Methods: POST, GET, OPTIONS');

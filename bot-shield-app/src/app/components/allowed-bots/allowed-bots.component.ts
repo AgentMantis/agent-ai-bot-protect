@@ -169,21 +169,21 @@ export class AllowedBotsComponent implements OnInit {
   saveRobotsTxt(content: string) {
     const endpoint = '/wp-json/bot-shield/v1/save-robots-txt';
     
-    // If content is empty, send a clear flag to indicate intentional clearing
     const payload = content === '' 
-        ? { content: '', clear: true }  // Add clear flag when intentionally empty
+        ? { content: '', clear: true }
         : { content };
     
     console.log('Attempting to save robots.txt with payload:', payload);
     
-    return this.http.post(endpoint, payload, {
+    return this.http.post<{success: boolean, message: string, final_content: string}>(endpoint, payload, {
         headers: {
             'X-WP-Nonce': (window as any).wpRestNonce
         }
     }).subscribe({
-        next: (response: any) => {
+        next: (response) => {
             console.log('robots.txt saved successfully:', response);
-            this.generatedRobotsTxt = content; // Update the display
+            // Update the display with the final content from WordPress
+            this.generatedRobotsTxt = response.final_content;
         },
         error: (error) => {
             console.error('Error saving robots.txt:', error);
