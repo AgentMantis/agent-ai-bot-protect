@@ -201,24 +201,27 @@ export class AllowedBotsComponent implements OnInit {
         ? { content: '', clear: true }
         : { content };
     
-    console.log('Attempting to save robots.txt with payload:', payload);
-    
     return this.http.post<{success: boolean, message: string, final_content: string}>(endpoint, payload, {
-        headers: {
-            'X-WP-Nonce': (window as any).wpRestNonce
-        }
+      headers: {
+        'X-WP-Nonce': (window as any).wpRestNonce
+      }
     }).subscribe({
-        next: (response) => {
-            console.log('robots.txt saved successfully:', response);
-            // Update the display with the final content from WordPress
-            this.generatedRobotsTxt = response.final_content;
-        },
-        error: (error) => {
-            console.error('Error saving robots.txt:', error);
-            if (error.error && error.error.message) {
-                console.error('Server error message:', error.error.message);
-            }
+      next: (response) => {
+        console.log('robots.txt saved successfully:', response);
+        // Extract only the BotShield section
+        const botShieldMatch = response.final_content.match(/# Begin BotShield\s*([\s\S]*?)\s*# End BotShield/);
+        if (botShieldMatch && botShieldMatch[1]) {
+          this.generatedRobotsTxt = botShieldMatch[1].trim();
+        } else {
+          this.generatedRobotsTxt = '';
         }
+      },
+      error: (error) => {
+        console.error('Error saving robots.txt:', error);
+        if (error.error && error.error.message) {
+          console.error('Server error message:', error.error.message);
+        }
+      }
     });
   }
 
