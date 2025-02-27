@@ -18,6 +18,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
+
 header {
   display: flex;
   align-items: center;
@@ -92,7 +93,7 @@ footer {
 
 .nav-menu a {
   text-decoration: none;
-  padding: 10px 15px;
+  padding: 8px 15px;
   color: var(--color-text);
   border: none;
   transition: background-color 0.3s, border-color 0.3s;

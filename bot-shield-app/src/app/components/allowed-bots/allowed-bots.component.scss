@@ -233,7 +233,7 @@ button:hover {
 
 .search-field {
   position: sticky;
-  top: 0;
+  top: -1px;
   z-index: 1;
   width: 100%;
   padding: 20px;
