@@ -14,10 +14,10 @@
 
 .robots-form {
   flex: 1 1 70%;
-  padding: 20px;
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
+  
 }
 
 .output-panel {
@@ -193,8 +193,8 @@ button:hover {
 }
 
 .bot-toggles {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   padding: 16px;
 }
@@ -203,6 +203,7 @@ button:hover {
   padding: 8px;
   border-radius: 4px;
   background-color: #f5f5f5;
+  min-width: 0; /* Prevents grid items from overflowing */
   
   &:hover {
     background-color: #eeeeee;
@@ -225,7 +226,22 @@ button:hover {
   margin-top: 4px;
 }
 
+.bot-list {
+  height: 100%;
+}
+
 .search-field {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   width: 100%;
-  margin-bottom: 16px;
+  padding: 20px;
+  background-color: var(--color-panel);
+  box-sizing: border-box;
+  margin: 0;
+}
+
+h2 {
+  padding: 20px 20px 0;
+  margin-top: 0;
 }
