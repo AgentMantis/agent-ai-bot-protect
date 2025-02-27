@@ -1,7 +1,15 @@
 <div class="panel-container">
   <form class="robots-form">
     <div class="bot-list" *ngIf="botList.length">
-      <h2>Allow/Block Bots</h2>
+      <div class="bot-list-header">
+        <h2>Allow/Block Bots</h2>
+        <mat-slide-toggle
+          [checked]="!areAllBotsDisallowed()"
+          (change)="toggleAllBots($event.checked)"
+          color="primary">
+          {{ areAllBotsDisallowed() ? 'All Bots are blocked' : 'All Bots are allowed' }}
+        </mat-slide-toggle>
+      </div>
       <mat-form-field class="search-field" appearance="outline">
         <mat-label>Search bots</mat-label>
         <input matInput

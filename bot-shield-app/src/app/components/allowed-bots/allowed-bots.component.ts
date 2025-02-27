@@ -268,4 +268,16 @@ export class AllowedBotsComponent implements OnInit {
       (bot.description && bot.description.toLowerCase().includes(search))
     );
   }
+
+  areAllBotsDisallowed(): boolean {
+    return this.botList.every(bot => this.disallowedBots[bot.name]);
+  }
+
+  toggleAllBots(allow: boolean) {
+    this.botList.forEach(bot => {
+      this.disallowedBots[bot.name] = !allow;
+    });
+    this.updateRobotsTxt();
+    this.commitRobotsTxt();
+  }
 }
