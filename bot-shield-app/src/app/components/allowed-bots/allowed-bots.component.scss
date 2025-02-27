@@ -1,31 +1,31 @@
 :host {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .panel-container {
   display: flex;
   flex: 1;
-  height: 100%;
+  min-height: 0; /* Needed for Firefox */
   overflow: hidden;
 }
 
 .robots-form {
   flex: 1 1 70%;
-  height: 100%;
+  min-height: 0;
   overflow-y: auto;
   box-sizing: border-box;
-  
 }
 
 .output-panel {
   flex: 1 1 30%;
   padding: 20px;
   background-color: var(--color-output);
+  min-height: 0;
   overflow-y: auto;
-  height: 100%;
   box-sizing: border-box;
 }
 
@@ -228,6 +228,7 @@ button:hover {
 
 .bot-list {
   height: 100%;
+  overflow-y: auto;
 }
 
 .search-field {

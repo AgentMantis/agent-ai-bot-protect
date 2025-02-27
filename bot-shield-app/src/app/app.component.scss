@@ -31,7 +31,11 @@ header {
 }
 
 .content {
-  flex: 1;
+  flex: 1 0 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   margin: 15px;
   margin-top: 0;
   padding-top: 0;
@@ -40,6 +44,10 @@ header {
 .container {
   border: 1px solid var(--color-border);
   background-color: var(--color-panel);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 footer {
@@ -114,4 +122,22 @@ footer {
 
 .nav-menu a {
   border-right: 1px solid var(--color-border);
+}
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  flex: 0 0 auto;
+}
+
+nav {
+  flex: 0 0 auto;
+}
+
+footer {
+  flex: 0 0 auto;
 }
