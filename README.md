@@ -16,6 +16,9 @@ docker-compose -f docker-compose.yaml up -d
 # - './plugins/bot-shield:/bitnami/wordpress/wp-content/plugins/bot-shield'
 ```
 
+## Access DB
+
+To access DB via workbench or DBeaver, use user `root` with no password.
 
 
 ## Wordpress admin
