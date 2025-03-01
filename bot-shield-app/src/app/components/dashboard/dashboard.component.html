@@ -1,13 +1,95 @@
-
-  <div class="panel-container">
-    <div class="header">
-      <h1>Bot Traffic Overview</h1>
-      <h2>Distribution of bot traffic by User Agent</h2>
-    </div>
-    <div class="chart-container">
-      <canvas #botChart width="400" height="400"></canvas>
+<div class="dashboard-container">
+  <div class="header">
+    <h1>Bot Shield Dashboard</h1>
+    <div class="stats-summary">
+      <div class="stat-card">
+        <div class="stat-value">{{ totalRequests }}</div>
+        <div class="stat-label">Total Bot Hits</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ blockedRequests }}</div>
+        <div class="stat-label">Blocked Requests</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ blockedRequests > 0 ? (blockedRequests / totalRequests * 100).toFixed(1) + '%' : '0%' }}</div>
+        <div class="stat-label">Block Rate</div>
+      </div>
     </div>
   </div>
+
+  <div class="date-range-selector">
+    <form [formGroup]="dateRangeForm" (ngSubmit)="onDateRangeChange()">
+      <mat-form-field appearance="fill">
+        <mat-label>Start Date</mat-label>
+        <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+        <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+        <mat-datepicker #startPicker></mat-datepicker>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill">
+        <mat-label>End Date</mat-label>
+        <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+        <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+        <mat-datepicker #endPicker></mat-datepicker>
+      </mat-form-field>
+
+      <button mat-raised-button color="primary" type="submit">Update</button>
+    </form>
+  </div>
+
+  <mat-tab-group>
+    <mat-tab label="Bot Traffic">
+      <div class="panel-container">
+        <div class="chart-header">
+          <h2>Bot Traffic Distribution</h2>
+          <p>Shows total hits and blocked requests by bot type</p>
+        </div>
+        <div class="chart-container">
+          <canvas #botChart width="400" height="400"></canvas>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Daily Activity">
+      <div class="panel-container">
+        <div class="chart-header">
+          <h2>Daily Bot Activity</h2>
+          <p>Shows bot traffic trends over time</p>
+        </div>
+        <div class="chart-container">
+          <canvas #dailyChart width="400" height="400"></canvas>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Bot Details">
+      <div class="panel-container">
+        <div class="chart-header">
+          <h2>Bot Details</h2>
+          <p>Detailed information about detected bots</p>
+        </div>
+        <table class="bot-table">
+          <thead>
+            <tr>
+              <th>Bot Name</th>
+              <th>Total Hits</th>
+              <th>Blocked</th>
+              <th>Block Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let bot of botData">
+              <td>{{ bot.name }}</td>
+              <td>{{ bot.total }}</td>
+              <td>{{ bot.blocked }}</td>
+              <td>{{ bot.total > 0 ? (bot.blocked / bot.total * 100).toFixed(1) + '%' : '0%' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
 
 
 

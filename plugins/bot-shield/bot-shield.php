@@ -14,9 +14,9 @@ function bot_shield_activate() {
     global $wpdb;
     $charset_collate = $wpdb->get_charset_collate();
     
-    $table_name = $wpdb->prefix . 'bot_shield_logs';
-    
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    // Create the bot_shield_logs table (for backward compatibility)
+    $logs_table = $wpdb->prefix . 'bot_shield_logs';
+    $logs_sql = "CREATE TABLE IF NOT EXISTS $logs_table (
         id bigint(20) NOT NULL AUTO_INCREMENT,
         user_agent text NOT NULL,
         timestamp datetime NOT NULL,
@@ -28,11 +28,24 @@ function bot_shield_activate() {
         PRIMARY KEY  (id)
     ) $charset_collate;";
     
+    // Create the bot_shield_counts table for aggregated data
+    $counts_table = $wpdb->prefix . 'bot_shield_counts';
+    $counts_sql = "CREATE TABLE IF NOT EXISTS $counts_table (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        bot_name varchar(255) NOT NULL,
+        date_recorded date NOT NULL,
+        hit_count int NOT NULL DEFAULT 1,
+        blocked_count int NOT NULL DEFAULT 0,
+        PRIMARY KEY  (id),
+        UNIQUE KEY bot_date (bot_name, date_recorded)
+    ) $charset_collate;";
+    
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
+    dbDelta($logs_sql);
+    dbDelta($counts_sql);
     
     // Set version in options
-    update_option('bot_shield_db_version', '1.1');
+    update_option('bot_shield_db_version', '1.2');
 }
 register_activation_hook(__FILE__, 'bot_shield_activate');
 
@@ -41,30 +54,121 @@ function bot_shield_check_db_updates() {
     $current_version = get_option('bot_shield_db_version', '1.0');
     
     // If we're already at the latest version, no need to continue
-    if (version_compare($current_version, '1.1', '>=')) {
+    if (version_compare($current_version, '1.2', '>=')) {
         return;
     }
     
     global $wpdb;
-    $table_name = $wpdb->prefix . 'bot_shield_logs';
     
-    // Check if the table exists
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
-    
-    if ($table_exists) {
-        // Check if is_blocked column exists
-        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'is_blocked'");
+    // Update from 1.0 to 1.1 (add is_blocked column)
+    if (version_compare($current_version, '1.1', '<')) {
+        $table_name = $wpdb->prefix . 'bot_shield_logs';
         
-        if (empty($column_exists)) {
-            // Add the is_blocked column
-            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_blocked tinyint(1) NOT NULL DEFAULT 0");
+        // Check if the table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+        
+        if ($table_exists) {
+            // Check if is_blocked column exists
+            $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'is_blocked'");
+            
+            if (empty($column_exists)) {
+                // Add the is_blocked column
+                $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_blocked tinyint(1) NOT NULL DEFAULT 0");
+            }
         }
     }
     
+    // Update from 1.1 to 1.2 (add counts table)
+    if (version_compare($current_version, '1.2', '<')) {
+        $counts_table = $wpdb->prefix . 'bot_shield_counts';
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        $counts_sql = "CREATE TABLE IF NOT EXISTS $counts_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            bot_name varchar(255) NOT NULL,
+            date_recorded date NOT NULL,
+            hit_count int NOT NULL DEFAULT 1,
+            blocked_count int NOT NULL DEFAULT 0,
+            PRIMARY KEY  (id),
+            UNIQUE KEY bot_date (bot_name, date_recorded)
+        ) $charset_collate;";
+        
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($counts_sql);
+        
+        // Migrate existing log data to counts
+        bot_shield_migrate_logs_to_counts();
+    }
+    
     // Update version
-    update_option('bot_shield_db_version', '1.1');
+    update_option('bot_shield_db_version', '1.2');
 }
 add_action('plugins_loaded', 'bot_shield_check_db_updates');
+
+// Migrate existing log data to counts
+function bot_shield_migrate_logs_to_counts() {
+    global $wpdb;
+    $logs_table = $wpdb->prefix . 'bot_shield_logs';
+    $counts_table = $wpdb->prefix . 'bot_shield_counts';
+    
+    // Check if logs table exists
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$logs_table'") === $logs_table;
+    if (!$table_exists) {
+        return;
+    }
+    
+    // Get all bot logs grouped by bot_name and date
+    $results = $wpdb->get_results(
+        "SELECT 
+            bot_name, 
+            DATE(timestamp) as log_date, 
+            COUNT(*) as hit_count,
+            SUM(is_blocked) as blocked_count
+         FROM $logs_table
+         WHERE is_bot = 1
+         GROUP BY bot_name, DATE(timestamp)"
+    );
+    
+    if (empty($results)) {
+        return;
+    }
+    
+    // Insert aggregated data into counts table
+    foreach ($results as $row) {
+        // Check if this record already exists
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $counts_table WHERE bot_name = %s AND date_recorded = %s",
+            $row->bot_name,
+            $row->log_date
+        ));
+        
+        if ($exists) {
+            // Update existing record
+            $wpdb->query($wpdb->prepare(
+                "UPDATE $counts_table 
+                 SET hit_count = hit_count + %d, 
+                     blocked_count = blocked_count + %d
+                 WHERE bot_name = %s AND date_recorded = %s",
+                $row->hit_count,
+                $row->blocked_count,
+                $row->bot_name,
+                $row->log_date
+            ));
+        } else {
+            // Insert new record
+            $wpdb->insert(
+                $counts_table,
+                [
+                    'bot_name' => $row->bot_name,
+                    'date_recorded' => $row->log_date,
+                    'hit_count' => $row->hit_count,
+                    'blocked_count' => $row->blocked_count
+                ],
+                ['%s', '%s', '%d', '%d']
+            );
+        }
+    }
+}
 
 // Extract disallowed bots from robots.txt
 function bot_shield_get_disallowed_bots() {
@@ -115,31 +219,53 @@ function bot_shield_check_and_block() {
         return;
     }
     
-    // Get disallowed bots
+    // Get bots from plugin's robots.txt file (for tracking only)
+    $plugin_robots_txt_path = plugin_dir_path(__FILE__) . 'dist/assets/robots.txt';
+    $known_bots = array();
+    
+    if (file_exists($plugin_robots_txt_path)) {
+        $robots_content = file_get_contents($plugin_robots_txt_path);
+        $lines = explode("\n", $robots_content);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Skip empty lines and disallow directives
+            if (empty($line) || strpos($line, 'Disallow:') === 0) {
+                continue;
+            }
+            
+            // Extract bot name from User-agent line
+            if (preg_match('/^User-agent:\s*(.+)$/i', $line, $matches)) {
+                $bot_name = trim($matches[1]);
+                
+                // Skip the wildcard user agent
+                if ($bot_name !== '*') {
+                    $known_bots[] = $bot_name;
+                }
+            }
+        }
+    }
+    
+    // Get disallowed bots from site's robots.txt (via WordPress option) - these will be blocked
     $disallowed_bots = bot_shield_get_disallowed_bots();
     
-    // Check if current user agent matches any disallowed bot
-    foreach ($disallowed_bots as $bot) {
-        // Check for exact match or if the bot name is contained in the user agent
+    // First check if the user agent matches any known bot from the plugin's list (for tracking only)
+    foreach ($known_bots as $bot) {
         if (stripos($user_agent, $bot) !== false) {
-            // Log the blocked request
-            global $wpdb;
-            $wpdb->insert(
-                $wpdb->prefix . 'bot_shield_logs',
-                [
-                    'user_agent' => $user_agent,
-                    'timestamp' => current_time('mysql'),
-                    'referrer' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '',
-                    'url' => (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]",
-                    'is_bot' => 1,
-                    'bot_name' => $bot,
-                    'is_blocked' => $blocking_enabled ? 1 : 0
-                ],
-                ['%s', '%s', '%s', '%s', '%d', '%s', '%d']
-            );
-            
-            // Only block if blocking is enabled
-            if ($blocking_enabled) {
+            // Log the bot hit (increment counter) but don't block
+            bot_shield_increment_bot_count($bot, false);
+            break; // Only count once if multiple patterns match
+        }
+    }
+    
+    // Then check if the user agent matches any disallowed bot from the site's robots.txt (for blocking)
+    if ($blocking_enabled) {
+        foreach ($disallowed_bots as $bot) {
+            if (stripos($user_agent, $bot) !== false) {
+                // Log the bot hit and mark as blocked
+                bot_shield_increment_bot_count($bot, true);
+                
                 // Send 403 Forbidden response
                 status_header(403);
                 nocache_headers();
@@ -150,6 +276,38 @@ function bot_shield_check_and_block() {
                 exit;
             }
         }
+    }
+}
+
+// Increment bot count
+function bot_shield_increment_bot_count($bot_name, $was_blocked = false) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'bot_shield_counts';
+    $today = current_time('Y-m-d');
+    
+    // Try to update existing record for today
+    $result = $wpdb->query($wpdb->prepare(
+        "UPDATE $table_name 
+         SET hit_count = hit_count + 1,
+             blocked_count = blocked_count + %d
+         WHERE bot_name = %s AND date_recorded = %s",
+        $was_blocked ? 1 : 0,
+        $bot_name,
+        $today
+    ));
+    
+    // If no record was updated, insert a new one
+    if ($result === 0) {
+        $wpdb->insert(
+            $table_name,
+            [
+                'bot_name' => $bot_name,
+                'date_recorded' => $today,
+                'hit_count' => 1,
+                'blocked_count' => $was_blocked ? 1 : 0
+            ],
+            ['%s', '%s', '%d', '%d']
+        );
     }
 }
 
@@ -273,6 +431,25 @@ function bot_shield_register_routes() {
             return current_user_can('manage_options');
         }
     ]);
+    
+    // Add endpoint for getting bot stats by date range
+    register_rest_route('bot-shield/v1', '/bot-stats', [
+        'methods' => 'GET',
+        'callback' => 'bot_shield_get_stats',
+        'permission_callback' => function() {
+            return current_user_can('manage_options');
+        },
+        'args' => [
+            'start_date' => [
+                'required' => false,
+                'type' => 'string'
+            ],
+            'end_date' => [
+                'required' => false,
+                'type' => 'string'
+            ]
+        ]
+    ]);
 
     // Add this to your bot_shield_register_routes function
     register_rest_route('bot-shield/v1', '/log-visit', [
@@ -380,87 +557,75 @@ add_filter('robots_txt', 'bot_shield_serve_robots_txt');
 // Analyze logs
 function bot_shield_analyze_logs() {
     global $wpdb;
+    $counts_table = $wpdb->prefix . 'bot_shield_counts';
     
-    $total_requests = $wpdb->get_var(
-        "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
-         WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
-    );
-
-    $bot_requests = $wpdb->get_var(
-        "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
-         WHERE is_bot = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    // Get total hits and blocks for the last 30 days
+    $stats = $wpdb->get_row(
+        "SELECT SUM(hit_count) as total_hits, SUM(blocked_count) as total_blocks
+         FROM $counts_table 
+         WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)"
     );
     
-    $blocked_requests = $wpdb->get_var(
-        "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
-         WHERE is_blocked = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    $total_hits = $stats ? (int)$stats->total_hits : 0;
+    $total_blocks = $stats ? (int)$stats->total_blocks : 0;
+    
+    // Get bot-specific stats
+    $bot_stats = $wpdb->get_results(
+        "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
+         FROM $counts_table 
+         WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         GROUP BY bot_name
+         ORDER BY total DESC"
     );
-
-    $detected_bots = $wpdb->get_results(
-        "SELECT bot_name, COUNT(*) as count, SUM(is_blocked) as blocked_count 
-         FROM {$wpdb->prefix}bot_shield_logs 
-         WHERE is_bot = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-         GROUP BY bot_name"
+    
+    // Get daily stats for the last 30 days
+    $daily_stats = $wpdb->get_results(
+        "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
+         FROM $counts_table 
+         WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         GROUP BY date_recorded
+         ORDER BY date_recorded DESC"
     );
-
-    $recent_visits = $wpdb->get_results(
-        "SELECT bot_name as bot, timestamp as time, user_agent, is_blocked 
-         FROM {$wpdb->prefix}bot_shield_logs 
-         WHERE is_bot = 1 
-         ORDER BY timestamp DESC 
-         LIMIT 10"
-    );
-
+    
     $response = array(
         'success' => true,
         'data' => array(
-            'total_requests' => (int)$total_requests,
-            'bot_requests' => (int)$bot_requests,
-            'blocked_requests' => (int)$blocked_requests,
-            'detected_bots' => array_reduce($detected_bots, function($carry, $item) {
+            'total_requests' => $total_hits,
+            'blocked_requests' => $total_blocks,
+            'detected_bots' => array_reduce($bot_stats, function($carry, $item) {
                 $carry[$item->bot_name] = array(
-                    'total' => (int)$item->count,
-                    'blocked' => (int)$item->blocked_count
+                    'total' => (int)$item->total,
+                    'blocked' => (int)$item->blocked
                 );
                 return $carry;
             }, array()),
-            'recent_bot_visits' => array_map(function($visit) {
+            'daily_stats' => array_map(function($day) {
                 return array(
-                    'bot' => $visit->bot,
-                    'time' => $visit->time,
-                    'user_agent' => $visit->user_agent,
-                    'blocked' => (bool)$visit->is_blocked
+                    'date' => $day->date_recorded,
+                    'hits' => (int)$day->hits,
+                    'blocks' => (int)$day->blocks
                 );
-            }, $recent_visits)
+            }, $daily_stats)
         )
     );
 
     return rest_ensure_response($response);
 }
 
-// Log visit
+// Log visit (for client-side detection - keep for backward compatibility)
 function bot_shield_log_visit($request) {
-    global $wpdb;
-    
     $data = $request->get_params();
     
     $is_bot = preg_match('/bot|crawl|spider|slurp|search|agent/i', $data['userAgent']) ? 1 : 0;
     
-    $result = $wpdb->insert(
-        $wpdb->prefix . 'bot_shield_logs',
-        [
-            'user_agent' => $data['userAgent'],
-            'timestamp' => date('Y-m-d H:i:s', $data['timestamp'] / 1000),
-            'referrer' => $data['referrer'],
-            'url' => $data['url'],
-            'is_bot' => $is_bot,
-            'bot_name' => $is_bot ? extract_bot_name($data['userAgent']) : null,
-        ],
-        ['%s', '%s', '%s', '%s', '%d', '%s']
-    );
-
+    if ($is_bot) {
+        $bot_name = extract_bot_name($data['userAgent']);
+        // Only increment count for bots
+        bot_shield_increment_bot_count($bot_name, false);
+    }
+    
     return rest_ensure_response([
-        'success' => ($result !== false),
+        'success' => true,
         'is_bot' => $is_bot
     ]);
 }
@@ -523,4 +688,75 @@ function bot_shield_get_blocking_status() {
         'success' => true,
         'enabled' => $enabled === '1'
     ]);
+}
+
+// Get bot stats by date range
+function bot_shield_get_stats($request) {
+    global $wpdb;
+    $counts_table = $wpdb->prefix . 'bot_shield_counts';
+    
+    // Get date range parameters
+    $start_date = $request->get_param('start_date');
+    $end_date = $request->get_param('end_date');
+    
+    // Default to last 30 days if not specified
+    if (empty($start_date)) {
+        $start_date = date('Y-m-d', strtotime('-30 days'));
+    }
+    
+    if (empty($end_date)) {
+        $end_date = date('Y-m-d');
+    }
+    
+    // Get bot stats for the date range
+    $bot_stats = $wpdb->get_results($wpdb->prepare(
+        "SELECT 
+            bot_name, 
+            SUM(hit_count) as total, 
+            SUM(blocked_count) as blocked
+         FROM $counts_table 
+         WHERE date_recorded BETWEEN %s AND %s
+         GROUP BY bot_name
+         ORDER BY total DESC",
+        $start_date,
+        $end_date
+    ));
+    
+    // Get daily stats for the date range
+    $daily_stats = $wpdb->get_results($wpdb->prepare(
+        "SELECT 
+            date_recorded, 
+            SUM(hit_count) as hits, 
+            SUM(blocked_count) as blocks
+         FROM $counts_table 
+         WHERE date_recorded BETWEEN %s AND %s
+         GROUP BY date_recorded
+         ORDER BY date_recorded ASC",
+        $start_date,
+        $end_date
+    ));
+    
+    $response = array(
+        'success' => true,
+        'data' => array(
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'bots' => array_reduce($bot_stats, function($carry, $item) {
+                $carry[$item->bot_name] = array(
+                    'total' => (int)$item->total,
+                    'blocked' => (int)$item->blocked
+                );
+                return $carry;
+            }, array()),
+            'daily' => array_map(function($day) {
+                return array(
+                    'date' => $day->date_recorded,
+                    'hits' => (int)$day->hits,
+                    'blocks' => (int)$day->blocks
+                );
+            }, $daily_stats)
+        )
+    );
+    
+    return rest_ensure_response($response);
 } 

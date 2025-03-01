@@ -6,12 +6,36 @@ export interface BotAnalysisResponse {
   success: boolean;
   data: {
     total_requests: number;
-    bot_requests: number;
-    detected_bots: { [key: string]: number };
-    recent_bot_visits: {
-      bot: string;
-      time: string;
-      user_agent: string;
+    blocked_requests: number;
+    detected_bots: { 
+      [key: string]: {
+        total: number;
+        blocked: number;
+      } 
+    };
+    daily_stats: {
+      date: string;
+      hits: number;
+      blocks: number;
+    }[];
+  };
+}
+
+export interface BotStatsResponse {
+  success: boolean;
+  data: {
+    start_date: string;
+    end_date: string;
+    bots: { 
+      [key: string]: {
+        total: number;
+        blocked: number;
+      } 
+    };
+    daily: {
+      date: string;
+      hits: number;
+      blocks: number;
     }[];
   };
 }
@@ -26,6 +50,29 @@ export class BotAnalysisService {
     const endpoint = '/wp-json/bot-shield/v1/analyze-logs';
     
     return this.http.get<BotAnalysisResponse>(endpoint, {
+      headers: {
+        'X-WP-Nonce': (window as any).wpRestNonce
+      }
+    });
+  }
+  
+  getBotStats(startDate?: string, endDate?: string): Observable<BotStatsResponse> {
+    let endpoint = '/wp-json/bot-shield/v1/bot-stats';
+    
+    // Add date range parameters if provided
+    const params: string[] = [];
+    if (startDate) {
+      params.push(`start_date=${startDate}`);
+    }
+    if (endDate) {
+      params.push(`end_date=${endDate}`);
+    }
+    
+    if (params.length > 0) {
+      endpoint += '?' + params.join('&');
+    }
+    
+    return this.http.get<BotStatsResponse>(endpoint, {
       headers: {
         'X-WP-Nonce': (window as any).wpRestNonce
       }
