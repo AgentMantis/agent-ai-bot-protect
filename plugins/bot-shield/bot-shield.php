@@ -250,21 +250,18 @@ function bot_shield_check_and_block() {
     // Get disallowed bots from site's robots.txt (via WordPress option) - these will be blocked
     $disallowed_bots = bot_shield_get_disallowed_bots();
     
-    // First check if the user agent matches any known bot from the plugin's list (for tracking only)
-    foreach ($known_bots as $bot) {
-        if (stripos($user_agent, $bot) !== false) {
-            // Log the bot hit (increment counter) but don't block
-            bot_shield_increment_bot_count($bot, false);
-            break; // Only count once if multiple patterns match
-        }
-    }
+    // Flag to track if we've already counted this bot
+    $bot_counted = false;
+    $matched_bot_name = '';
     
-    // Then check if the user agent matches any disallowed bot from the site's robots.txt (for blocking)
+    // First check if the user agent matches any disallowed bot from the site's robots.txt (for blocking)
     if ($blocking_enabled) {
         foreach ($disallowed_bots as $bot) {
             if (stripos($user_agent, $bot) !== false) {
                 // Log the bot hit and mark as blocked
                 bot_shield_increment_bot_count($bot, true);
+                $bot_counted = true;
+                $matched_bot_name = $bot;
                 
                 // Send 403 Forbidden response
                 status_header(403);
@@ -274,6 +271,17 @@ function bot_shield_check_and_block() {
                 echo '<p>Access to this resource is denied by Bot Shield.</p>';
                 echo '</body></html>';
                 exit;
+            }
+        }
+    }
+    
+    // If not already counted as a disallowed bot, check if it matches any known bot from the plugin's list
+    if (!$bot_counted) {
+        foreach ($known_bots as $bot) {
+            if (stripos($user_agent, $bot) !== false) {
+                // Log the bot hit (increment counter) but don't block
+                bot_shield_increment_bot_count($bot, false);
+                break; // Only count once if multiple patterns match
             }
         }
     }
