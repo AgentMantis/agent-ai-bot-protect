@@ -345,8 +345,8 @@ function bot_shield_enqueue_scripts() {
 
         // Enqueue main analytics script
         wp_enqueue_script(
-            'bot-shield-analytics',
-            $plugin_dir_url . 'bot-shield-analytics.js',
+            'bot-shield-agent',
+            $plugin_dir_url . 'bot-shield-agent.js',
             array(), 
             '1.0.0',
             true 
@@ -354,7 +354,7 @@ function bot_shield_enqueue_scripts() {
         
         // Add async attribute to the script
         add_filter('script_loader_tag', function($tag, $handle) {
-            if ('bot-shield-analytics' === $handle) {
+            if ('bot-shield-agent' === $handle) {
                 return str_replace(' src', ' async src', $tag);
             }
             return $tag;
