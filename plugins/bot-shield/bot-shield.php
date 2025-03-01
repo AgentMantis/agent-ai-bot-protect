@@ -9,6 +9,153 @@ Author: Your Name
 // Exit if accessed directly
 if (!defined('ABSPATH')) exit;
 
+// Create database tables on plugin activation
+function bot_shield_activate() {
+    global $wpdb;
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    $table_name = $wpdb->prefix . 'bot_shield_logs';
+    
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        user_agent text NOT NULL,
+        timestamp datetime NOT NULL,
+        referrer text,
+        url text NOT NULL,
+        is_bot tinyint(1) NOT NULL DEFAULT 0,
+        bot_name varchar(255),
+        is_blocked tinyint(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY  (id)
+    ) $charset_collate;";
+    
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    // Set version in options
+    update_option('bot_shield_db_version', '1.1');
+}
+register_activation_hook(__FILE__, 'bot_shield_activate');
+
+// Check and update database structure
+function bot_shield_check_db_updates() {
+    $current_version = get_option('bot_shield_db_version', '1.0');
+    
+    // If we're already at the latest version, no need to continue
+    if (version_compare($current_version, '1.1', '>=')) {
+        return;
+    }
+    
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'bot_shield_logs';
+    
+    // Check if the table exists
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+    
+    if ($table_exists) {
+        // Check if is_blocked column exists
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'is_blocked'");
+        
+        if (empty($column_exists)) {
+            // Add the is_blocked column
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_blocked tinyint(1) NOT NULL DEFAULT 0");
+        }
+    }
+    
+    // Update version
+    update_option('bot_shield_db_version', '1.1');
+}
+add_action('plugins_loaded', 'bot_shield_check_db_updates');
+
+// Extract disallowed bots from robots.txt
+function bot_shield_get_disallowed_bots() {
+    $robots_txt_content = get_option('bot_shield_robots_txt', '');
+    $disallowed_bots = array();
+    
+    // Extract bot names from User-agent lines
+    if (!empty($robots_txt_content)) {
+        $lines = explode("\n", $robots_txt_content);
+        $current_bot = null;
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Skip comments and empty lines
+            if (empty($line) || strpos($line, '#') === 0) {
+                continue;
+            }
+            
+            // Check for User-agent lines
+            if (preg_match('/^User-agent:\s*(.+)$/i', $line, $matches)) {
+                $current_bot = trim($matches[1]);
+                
+                // Skip the wildcard user agent
+                if ($current_bot !== '*') {
+                    $disallowed_bots[] = $current_bot;
+                }
+            }
+        }
+    }
+    
+    return $disallowed_bots;
+}
+
+// Check and block disallowed bots
+function bot_shield_check_and_block() {
+    // Skip for admin users
+    if (is_admin() || current_user_can('manage_options')) {
+        return;
+    }
+    
+    // Check if blocking is enabled
+    $blocking_enabled = get_option('bot_shield_blocking_enabled', '1') === '1';
+    
+    // Get user agent
+    $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+    if (empty($user_agent)) {
+        return;
+    }
+    
+    // Get disallowed bots
+    $disallowed_bots = bot_shield_get_disallowed_bots();
+    
+    // Check if current user agent matches any disallowed bot
+    foreach ($disallowed_bots as $bot) {
+        // Check for exact match or if the bot name is contained in the user agent
+        if (stripos($user_agent, $bot) !== false) {
+            // Log the blocked request
+            global $wpdb;
+            $wpdb->insert(
+                $wpdb->prefix . 'bot_shield_logs',
+                [
+                    'user_agent' => $user_agent,
+                    'timestamp' => current_time('mysql'),
+                    'referrer' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '',
+                    'url' => (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]",
+                    'is_bot' => 1,
+                    'bot_name' => $bot,
+                    'is_blocked' => $blocking_enabled ? 1 : 0
+                ],
+                ['%s', '%s', '%s', '%s', '%d', '%s', '%d']
+            );
+            
+            // Only block if blocking is enabled
+            if ($blocking_enabled) {
+                // Send 403 Forbidden response
+                status_header(403);
+                nocache_headers();
+                echo '<html><head><title>403 Forbidden</title></head><body>';
+                echo '<h1>403 Forbidden</h1>';
+                echo '<p>Access to this resource is denied by Bot Shield.</p>';
+                echo '</body></html>';
+                exit;
+            }
+        }
+    }
+}
+
+// Hook into WordPress init to check and block bots
+add_action('init', 'bot_shield_check_and_block', 1);
+
 // Enqueue Angular scripts and styles
 function bot_shield_enqueue_scripts() {
     $plugin_dir_url = plugin_dir_url(__FILE__);
@@ -150,6 +297,30 @@ function bot_shield_register_routes() {
             ]
         ]
     ]);
+    
+    // Add endpoint to toggle bot blocking
+    register_rest_route('bot-shield/v1', '/toggle-blocking', [
+        'methods' => 'POST',
+        'callback' => 'bot_shield_toggle_blocking',
+        'permission_callback' => function() {
+            return current_user_can('manage_options');
+        },
+        'args' => [
+            'enabled' => [
+                'required' => true,
+                'type' => 'boolean'
+            ]
+        ]
+    ]);
+    
+    // Add endpoint to get blocking status
+    register_rest_route('bot-shield/v1', '/blocking-status', [
+        'methods' => 'GET',
+        'callback' => 'bot_shield_get_blocking_status',
+        'permission_callback' => function() {
+            return current_user_can('manage_options');
+        }
+    ]);
 }
 add_action('rest_api_init', 'bot_shield_register_routes');
 
@@ -219,16 +390,21 @@ function bot_shield_analyze_logs() {
         "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
          WHERE is_bot = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
     );
+    
+    $blocked_requests = $wpdb->get_var(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}bot_shield_logs 
+         WHERE is_blocked = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    );
 
     $detected_bots = $wpdb->get_results(
-        "SELECT bot_name, COUNT(*) as count 
+        "SELECT bot_name, COUNT(*) as count, SUM(is_blocked) as blocked_count 
          FROM {$wpdb->prefix}bot_shield_logs 
          WHERE is_bot = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
          GROUP BY bot_name"
     );
 
     $recent_visits = $wpdb->get_results(
-        "SELECT bot_name as bot, timestamp as time, user_agent 
+        "SELECT bot_name as bot, timestamp as time, user_agent, is_blocked 
          FROM {$wpdb->prefix}bot_shield_logs 
          WHERE is_bot = 1 
          ORDER BY timestamp DESC 
@@ -240,15 +416,20 @@ function bot_shield_analyze_logs() {
         'data' => array(
             'total_requests' => (int)$total_requests,
             'bot_requests' => (int)$bot_requests,
+            'blocked_requests' => (int)$blocked_requests,
             'detected_bots' => array_reduce($detected_bots, function($carry, $item) {
-                $carry[$item->bot_name] = (int)$item->count;
+                $carry[$item->bot_name] = array(
+                    'total' => (int)$item->count,
+                    'blocked' => (int)$item->blocked_count
+                );
                 return $carry;
             }, array()),
             'recent_bot_visits' => array_map(function($visit) {
                 return array(
                     'bot' => $visit->bot,
                     'time' => $visit->time,
-                    'user_agent' => $visit->user_agent
+                    'user_agent' => $visit->user_agent,
+                    'blocked' => (bool)$visit->is_blocked
                 );
             }, $recent_visits)
         )
@@ -321,4 +502,25 @@ function bot_shield_admin_styles() {
     </style>
     ';
 }
-add_action('admin_head', 'bot_shield_admin_styles'); 
+add_action('admin_head', 'bot_shield_admin_styles');
+
+// Toggle bot blocking
+function bot_shield_toggle_blocking($request) {
+    $enabled = $request->get_param('enabled');
+    update_option('bot_shield_blocking_enabled', $enabled ? '1' : '0');
+    
+    return rest_ensure_response([
+        'success' => true,
+        'enabled' => $enabled
+    ]);
+}
+
+// Get blocking status
+function bot_shield_get_blocking_status() {
+    $enabled = get_option('bot_shield_blocking_enabled', '1');
+    
+    return rest_ensure_response([
+        'success' => true,
+        'enabled' => $enabled === '1'
+    ]);
+} 
