@@ -3,7 +3,7 @@
 Plugin Name: Bot Shield
 Description: Block AI bots by managing user agents and access patterns
 Version: 1.0.0
-Author: Your Name
+Author: Agent Mantis
 */
 
 // Exit if accessed directly
@@ -363,21 +363,31 @@ function bot_shield_enqueue_scripts() {
 
     // Only load admin-specific scripts on our admin page
     if (isset($_GET['page']) && $_GET['page'] === 'bot-shield') {
-        // Remove default script tags - we'll add them manually with type="module"
-        remove_action('wp_head', 'wp_print_scripts');
-        remove_action('wp_head', 'wp_print_head_scripts', 9);
-        remove_action('wp_head', 'wp_enqueue_scripts', 1);
-
-        // Add our scripts to footer with proper type="module"
-        add_action('admin_footer', function() use ($plugin_dir_url) {
-            ?>
-            <script>
-                // Add REST API nonce to window object
-                window.wpRestNonce = '<?php echo wp_create_nonce('wp_rest'); ?>';
-            </script>
-            <script type="module" src="<?php echo $plugin_dir_url; ?>dist/bot-shield.js?ver=1.0.0"></script>
-            <?php
-        });
+        // Enqueue the module script
+        wp_enqueue_script(
+            'bot-shield-module',
+            $plugin_dir_url . 'dist/bot-shield.js',
+            array(),
+            '1.0.0',
+            true
+        );
+        
+        // Add the module type to the script tag
+        add_filter('script_loader_tag', function($tag, $handle) {
+            if ('bot-shield-module' === $handle) {
+                return str_replace(' src', ' type="module" src', $tag);
+            }
+            return $tag;
+        }, 10, 2);
+        
+        // Add the REST API nonce to the script
+        wp_localize_script(
+            'bot-shield-module',
+            'botShieldData',
+            array(
+                'wpRestNonce' => wp_create_nonce('wp_rest')
+            )
+        );
 
         // Enqueue the styles normally
         wp_enqueue_style(
