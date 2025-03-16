@@ -13,20 +13,7 @@ if (!defined('ABSPATH')) exit;
 function bot_shield_activate() {
     global $wpdb;
     $charset_collate = $wpdb->get_charset_collate();
-    
-    // Create the bot_shield_logs table (for backward compatibility)
-    $logs_table = $wpdb->prefix . 'bot_shield_logs';
-    $logs_sql = "CREATE TABLE IF NOT EXISTS $logs_table (
-        id bigint(20) NOT NULL AUTO_INCREMENT,
-        user_agent text NOT NULL,
-        timestamp datetime NOT NULL,
-        referrer text,
-        url text NOT NULL,
-        is_bot tinyint(1) NOT NULL DEFAULT 0,
-        bot_name varchar(255),
-        is_blocked tinyint(1) NOT NULL DEFAULT 0,
-        PRIMARY KEY  (id)
-    ) $charset_collate;";
+ 
     
     // Create the bot_shield_counts table for aggregated data
     $counts_table = $wpdb->prefix . 'bot_shield_counts';
@@ -41,9 +28,7 @@ function bot_shield_activate() {
     ) $charset_collate;";
     
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($logs_sql);
     dbDelta($counts_sql);
-    
     // Set version in options
     update_option('bot_shield_db_version', '1.2');
 }
@@ -95,9 +80,6 @@ function bot_shield_check_db_updates() {
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($counts_sql);
-        
-        // Migrate existing log data to counts
-        bot_shield_migrate_logs_to_counts();
     }
     
     // Update version
@@ -105,70 +87,6 @@ function bot_shield_check_db_updates() {
 }
 add_action('plugins_loaded', 'bot_shield_check_db_updates');
 
-// Migrate existing log data to counts
-function bot_shield_migrate_logs_to_counts() {
-    global $wpdb;
-    $logs_table = $wpdb->prefix . 'bot_shield_logs';
-    $counts_table = $wpdb->prefix . 'bot_shield_counts';
-    
-    // Check if logs table exists
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$logs_table'") === $logs_table;
-    if (!$table_exists) {
-        return;
-    }
-    
-    // Get all bot logs grouped by bot_name and date
-    $results = $wpdb->get_results(
-        "SELECT 
-            bot_name, 
-            DATE(timestamp) as log_date, 
-            COUNT(*) as hit_count,
-            SUM(is_blocked) as blocked_count
-         FROM $logs_table
-         WHERE is_bot = 1
-         GROUP BY bot_name, DATE(timestamp)"
-    );
-    
-    if (empty($results)) {
-        return;
-    }
-    
-    // Insert aggregated data into counts table
-    foreach ($results as $row) {
-        // Check if this record already exists
-        $exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM $counts_table WHERE bot_name = %s AND date_recorded = %s",
-            $row->bot_name,
-            $row->log_date
-        ));
-        
-        if ($exists) {
-            // Update existing record
-            $wpdb->query($wpdb->prepare(
-                "UPDATE $counts_table 
-                 SET hit_count = hit_count + %d, 
-                     blocked_count = blocked_count + %d
-                 WHERE bot_name = %s AND date_recorded = %s",
-                $row->hit_count,
-                $row->blocked_count,
-                $row->bot_name,
-                $row->log_date
-            ));
-        } else {
-            // Insert new record
-            $wpdb->insert(
-                $counts_table,
-                [
-                    'bot_name' => $row->bot_name,
-                    'date_recorded' => $row->log_date,
-                    'hit_count' => $row->hit_count,
-                    'blocked_count' => $row->blocked_count
-                ],
-                ['%s', '%s', '%d', '%d']
-            );
-        }
-    }
-}
 
 // Extract disallowed bots from robots.txt
 function bot_shield_get_disallowed_bots() {
