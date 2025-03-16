@@ -4,6 +4,8 @@ Plugin Name: Bot Shield
 Description: Block AI bots by managing user agents and access patterns
 Version: 1.0.0
 Author: Agent Mantis
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
 // Exit if accessed directly
@@ -713,11 +715,11 @@ function bot_shield_get_stats($request) {
     
     // Default to last 30 days if not specified
     if (empty($start_date)) {
-        $start_date = date('Y-m-d', strtotime('-30 days'));
+        $start_date = gmdate('Y-m-d', strtotime('-30 days'));
     }
     
     if (empty($end_date)) {
-        $end_date = date('Y-m-d');
+        $end_date = gmdate('Y-m-d');
     }
     
     // Direct DB queries are necessary here for complex date-range aggregation queries on custom tables
