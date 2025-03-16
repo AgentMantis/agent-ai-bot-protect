@@ -477,16 +477,10 @@ add_action('rest_api_init', 'bot_shield_register_routes');
 
 // Handle saving robots.txt file
 function bot_shield_save_robots_txt($request) {
-    // Get content parameter and ensure it's a string
     $content = $request->get_param('content');
-    $content = is_null($content) ? '' : (string)$content;
-    
-    // Check if we should clear the BotShield section
-    $clear = $request->get_param('clear');
-    $should_clear = !empty($clear);
     
     // Debug logging
-    error_log('Bot Shield: Received request params - content: ' . var_export($content, true) . ', clear: ' . var_export($clear, true));
+    error_log('Bot Shield: Received request params - content: ' . var_export($content, true));
     
     // Read existing content
     $existing_content = get_option('bot_shield_robots_txt', '');
@@ -499,8 +493,8 @@ function bot_shield_save_robots_txt($request) {
     $pattern = '/# Begin BotShield.*# End BotShield\n*/s';
     $existing_content = preg_replace($pattern, '', $existing_content);
 
-    // If content is empty or clear is true, just save without BotShield section
-    if (empty($content) || $should_clear) {
+    // If content is empty, just save without BotShield section
+    if (empty($content)) {
         $final_content = trim($existing_content) . "\n";
         error_log('Bot Shield: Clearing BotShield section. Final content: ' . var_export($final_content, true));
     } else {

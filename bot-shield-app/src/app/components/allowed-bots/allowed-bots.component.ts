@@ -43,6 +43,18 @@ export class AllowedBotsComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    // Try to set the nonce directly from the script tag
+    const scriptTag = document.getElementById('bot-shield-module-js-extra');
+    if (scriptTag && scriptTag.textContent) {
+      const content = scriptTag.textContent;
+      const match = content.match(/var\s+botShieldData\s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
+      if (match && match[1]) {
+        // console.log('Found nonce in script tag during initialization.');
+        this.setNonce(match[1]);
+      }
+    }
+    
+    // Continue with the regular initialization
     this.loadBots();
     this.setupDivider();
   }
@@ -91,6 +103,31 @@ export class AllowedBotsComponent implements OnInit {
       mouseMoveListener();
       mouseUpListener();
     };
+  }
+
+  // Add a method to fetch a new nonce
+  private fetchNewNonce() {
+    // This is a common WordPress endpoint that can be used to get a new nonce
+    const ajaxUrl = (window as any).ajaxurl || '/wp-admin/admin-ajax.php';
+    
+    // Create a form data object
+    const formData = new FormData();
+    formData.append('action', 'bot_shield_get_nonce');
+    
+    // Make a POST request to the admin-ajax.php endpoint
+    this.http.post(ajaxUrl, formData).subscribe({
+      next: (response: any) => {
+        if (response && response.success && response.data) {
+          console.log('Successfully fetched new nonce');
+          (window as any).wpRestNonce = response.data;
+        } else {
+          console.error('Failed to fetch new nonce:', response);
+        }
+      },
+      error: (error) => {
+        console.error('Error fetching new nonce:', error);
+      }
+    });
   }
 
   updateRobotsTxt() {
@@ -179,9 +216,20 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   commitRobotsTxt() {
+    
     const blockedBotNames = Object.entries(this.disallowedBots)
         .filter(([_, selected]) => selected)
         .map(([botName]) => botName);
+
+
+    // Handle the case where no bots are selected
+    if (blockedBotNames.length === 0) {
+      console.log('No bots are blocked, clearing BotShield section');
+      // Save an empty string to clear the BotShield section
+      this.saveRobotsTxt('');
+      this.generatedRobotsTxt = '';
+      return;
+    }
 
     const botSections = blockedBotNames
         .map(bot => `User-agent: ${bot}\nDisallow: /`);
@@ -189,6 +237,7 @@ export class AllowedBotsComponent implements OnInit {
     const newContent = botSections.join('\n\n');
     
     // Always save, even if content is empty string
+    
     this.saveRobotsTxt(newContent);
     // Update the display
     this.generatedRobotsTxt = newContent;
@@ -197,17 +246,78 @@ export class AllowedBotsComponent implements OnInit {
   saveRobotsTxt(content: string) {
     const endpoint = '/wp-json/bot-shield/v1/save-robots-txt';
     
-    const payload = content === '' 
-        ? { content: '', clear: true }
-        : { content };
+    // Ensure content is always a string, even if null or undefined
+    const safeContent = content || '';
     
-    return this.http.post<{success: boolean, message: string, final_content: string}>(endpoint, payload, {
-      headers: {
-        'X-WP-Nonce': (window as any).wpRestNonce
+    // Prepare the payload
+    const payload = {
+      content: safeContent,
+      clear: safeContent === ''
+    };
+    
+    // Check if wpRestNonce is available
+    if (!(window as any).wpRestNonce) {
+      console.error('WordPress REST API nonce is not available. Authentication will fail.');
+      console.log('Please ensure that the WordPress site is properly loading the nonce value.');
+      console.log('You may need to refresh the page or check if you are logged in to WordPress.');
+      
+      // Try to get the nonce from botShieldData first
+      if ((window as any).botShieldData && (window as any).botShieldData.wpRestNonce) {
+        console.log('Found nonce in botShieldData.wpRestNonce.');
+        this.setNonce((window as any).botShieldData.wpRestNonce);
+      } else {
+        // Try to extract from script tag
+        const scriptTag = document.getElementById('bot-shield-module-js-extra');
+        if (scriptTag && scriptTag.textContent) {
+          const content = scriptTag.textContent;
+          const match = content.match(/var\s+botShieldData\s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
+          if (match && match[1]) {
+            this.setNonce(match[1]);
+          } else {
+            console.log('Could not find nonce in script tag.');
+          }
+        } else {
+          // Try to get the nonce from the page meta tags
+          const nonceElement = document.querySelector('meta[name="wp-rest-nonce"]');
+          if (nonceElement && nonceElement.getAttribute('content')) {
+            console.log('Found nonce in page meta tag, using that instead.');
+            this.setNonce(nonceElement.getAttribute('content') || '');
+          } else {
+            console.log('Could not find nonce in page meta tags.');
+          }
+        }
       }
-    }).subscribe({
+    }
+    
+    // Log the request details for debugging
+    // console.log('Attempting to save robots.txt with payload:', payload);
+    // console.log('Endpoint:', endpoint);
+    // console.log('wpRestNonce available:', (window as any).wpRestNonce ? 'Yes' : 'No');
+    // if ((window as any).wpRestNonce) {
+    //   console.log('Nonce value (first few chars):', (window as any).wpRestNonce.substring(0, 5) + '...');
+    // }
+    
+    // Create headers object with all required headers
+    const headers: any = {
+      'Content-Type': 'application/json'
+    };
+    
+    // Only add the nonce if it exists
+    if ((window as any).wpRestNonce) {
+      headers['X-WP-Nonce'] = (window as any).wpRestNonce;
+    }
+    
+    // Add credentials to ensure cookies are sent
+    this.http.post<{success: boolean, message: string, final_content: string}>(
+      endpoint, 
+      payload, 
+      { 
+        headers,
+        withCredentials: true // This ensures cookies are sent with the request
+      }
+    ).subscribe({
       next: (response) => {
-        console.log('robots.txt saved successfully:', response);
+        // console.log('robots.txt saved successfully:', response);
         // Extract only the BotShield section
         const botShieldMatch = response.final_content.match(/# Begin BotShield\s*([\s\S]*?)\s*# End BotShield/);
         if (botShieldMatch && botShieldMatch[1]) {
@@ -218,9 +328,30 @@ export class AllowedBotsComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error saving robots.txt:', error);
+        
+        // Provide more detailed error information based on status code
+        if (error.status === 401) {
+          console.error('Authentication failed (401 Unauthorized). Please check if:');
+          console.error('1. You are logged in to WordPress');
+          console.error('2. The nonce is valid and not expired');
+          console.error('3. You have permission to edit robots.txt');
+          
+          // Try to refresh the nonce if possible
+          console.log('Attempting to refresh the nonce...');
+          this.refreshNonce();
+        } else if (error.status === 403) {
+          console.error('Permission denied (403 Forbidden). You do not have permission to edit robots.txt.');
+        } else if (error.status === 404) {
+          console.error('Endpoint not found (404 Not Found). The BotShield plugin might not be active or properly set up.');
+        }
+        
         if (error.error && error.error.message) {
           console.error('Server error message:', error.error.message);
         }
+        
+        // Log more detailed error information
+        console.error('Error status:', error.status);
+        console.error('Error details:', error);
       }
     });
   }
@@ -251,6 +382,7 @@ export class AllowedBotsComponent implements OnInit {
 
   toggleBot(bot: string) {
     this.disallowedBots[bot] = !this.disallowedBots[bot];
+    // console.log(`Bot ${bot} toggled to ${this.disallowedBots[bot] ? 'disallowed' : 'allowed'}`);
     this.updateRobotsTxt();
     // Commit changes immediately when a bot is toggled
     this.commitRobotsTxt();
@@ -279,5 +411,39 @@ export class AllowedBotsComponent implements OnInit {
     });
     this.updateRobotsTxt();
     this.commitRobotsTxt();
+  }
+
+  // Add a public method to refresh the nonce
+  refreshNonce() {
+    console.log('Manually refreshing WordPress nonce...');
+    
+    // Try to get the nonce from botShieldData first
+    if ((window as any).botShieldData && (window as any).botShieldData.wpRestNonce) {
+      this.setNonce((window as any).botShieldData.wpRestNonce);
+      alert('Authentication token refreshed from botShieldData. Please try saving again.');
+      return;
+    }
+    
+    // Try to extract from script tag
+    const scriptTag = document.getElementById('bot-shield-module-js-extra');
+    if (scriptTag && scriptTag.textContent) {
+      const content = scriptTag.textContent;
+      const match = content.match(/var\s+botShieldData\s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
+      if (match && match[1]) {
+        this.setNonce(match[1]);
+        alert('Authentication token refreshed from script tag. Please try saving again.');
+        return;
+      }
+    }
+    
+    // If we couldn't find it in the expected places, try to fetch a new one
+    this.fetchNewNonce();
+    alert('Authentication token refresh requested. Please try saving again in a few seconds.');
+  }
+  
+  // Method to set the nonce and log it
+  setNonce(nonce: string) {
+    // console.log('Setting nonce to:', nonce.substring(0, 5) + '...');
+    (window as any).wpRestNonce = nonce;
   }
 }
