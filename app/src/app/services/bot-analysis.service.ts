@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { WordPressAuthService } from './wordpress-auth.service';
 
 export interface BotAnalysisResponse {
   success: boolean;
@@ -44,7 +45,10 @@ export interface BotStatsResponse {
   providedIn: 'root'
 })
 export class BotAnalysisService {
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private wpAuth: WordPressAuthService
+  ) {
     console.log('BotAnalysisService initialized');
   }
 
@@ -53,18 +57,12 @@ export class BotAnalysisService {
     const endpoint = '/wp-json/agent-ai-bot-protect/v1/analyze-logs';
     
     return this.http.get<BotAnalysisResponse>(endpoint, {
-      headers: {
-        'X-WP-Nonce': (window as any).wpRestNonce
-      }
+      headers: this.wpAuth.getAuthHeaders()
     });
   }
   
   getBotStats(startDate?: string, endDate?: string): Observable<BotStatsResponse> {
     console.log('getBotStats called with dates:', { startDate, endDate });
-    
-    // Check if nonce is available
-    const nonce = (window as any).wpRestNonce;
-    console.log('WP REST Nonce available:', !!nonce);
     
     let endpoint = '/wp-json/agent-ai-bot-protect/v1/bot-stats';
     
@@ -82,14 +80,10 @@ export class BotAnalysisService {
     }
     
     console.log('Making request to endpoint:', endpoint);
-    console.log('Request headers:', {
-      'X-WP-Nonce': nonce ? 'present' : 'missing'
-    });
+    console.log('Request headers:', this.wpAuth.getAuthHeaders());
     
     return this.http.get<BotStatsResponse>(endpoint, {
-      headers: {
-        'X-WP-Nonce': nonce
-      }
+      headers: this.wpAuth.getAuthHeaders()
     });
   }
 } 

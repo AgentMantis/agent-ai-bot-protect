@@ -9,6 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { SettingsService } from '../../services/settings.service';
+import { WordPressAuthService } from '../../services/wordpress-auth.service';
 import { Bot } from '../../interfaces/bot.interface';
 
 @Component({
@@ -39,19 +40,15 @@ export class AllowedBotsComponent implements OnInit {
     private http: HttpClient,
     private el: ElementRef,
     private renderer: Renderer2,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private wpAuth: WordPressAuthService
   ) {}
 
   ngOnInit() {
-    // Try to set the nonce directly from the script tag
-    const scriptTag = document.getElementById('agent-ai-bot-protect-module-js-extra');
-    if (scriptTag && scriptTag.textContent) {
-      const content = scriptTag.textContent;
-      const match = content.match(/var\s+AgentAIBotProtectData \s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
-      if (match && match[1]) {
-        // console.log('Found nonce in script tag during initialization.');
-        this.setNonce(match[1]);
-      }
+    // Try to get the nonce during initialization
+    const nonce = this.wpAuth.getNonce();
+    if (nonce) {
+      this.wpAuth.setNonce(nonce);
     }
     
     // Continue with the regular initialization
@@ -103,31 +100,6 @@ export class AllowedBotsComponent implements OnInit {
       mouseMoveListener();
       mouseUpListener();
     };
-  }
-
-  // Add a method to fetch a new nonce
-  private fetchNewNonce() {
-    // This is a common WordPress endpoint that can be used to get a new nonce
-    const ajaxUrl = (window as any).ajaxurl || '/wp-admin/admin-ajax.php';
-    
-    // Create a form data object
-    const formData = new FormData();
-    formData.append('action', 'bot_shield_get_nonce');
-    
-    // Make a POST request to the admin-ajax.php endpoint
-    this.http.post(ajaxUrl, formData).subscribe({
-      next: (response: any) => {
-        if (response && response.success && response.data) {
-          console.log('Successfully fetched new nonce');
-          (window as any).wpRestNonce = response.data;
-        } else {
-          console.error('Failed to fetch new nonce:', response);
-        }
-      },
-      error: (error) => {
-        console.error('Error fetching new nonce:', error);
-      }
-    });
   }
 
   updateRobotsTxt() {
@@ -255,57 +227,8 @@ export class AllowedBotsComponent implements OnInit {
       clear: safeContent === ''
     };
     
-    // Check if wpRestNonce is available
-    if (!(window as any).wpRestNonce) {
-      console.error('WordPress REST API nonce is not available. Authentication will fail.');
-      console.log('Please ensure that the WordPress site is properly loading the nonce value.');
-      console.log('You may need to refresh the page or check if you are logged in to WordPress.');
-      
-      // Try to get the nonce from AgentAIBotProtectData  first
-      if ((window as any).AgentAIBotProtectData  && (window as any).AgentAIBotProtectData .wpRestNonce) {
-        console.log('Found nonce in AgentAIBotProtectData .wpRestNonce.');
-        this.setNonce((window as any).AgentAIBotProtectData .wpRestNonce);
-      } else {
-        // Try to extract from script tag
-        const scriptTag = document.getElementById('agent-ai-bot-protect-module-js-extra');
-        if (scriptTag && scriptTag.textContent) {
-          const content = scriptTag.textContent;
-          const match = content.match(/var\s+AgentAIBotProtectData \s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
-          if (match && match[1]) {
-            this.setNonce(match[1]);
-          } else {
-            console.log('Could not find nonce in script tag.');
-          }
-        } else {
-          // Try to get the nonce from the page meta tags
-          const nonceElement = document.querySelector('meta[name="wp-rest-nonce"]');
-          if (nonceElement && nonceElement.getAttribute('content')) {
-            console.log('Found nonce in page meta tag, using that instead.');
-            this.setNonce(nonceElement.getAttribute('content') || '');
-          } else {
-            console.log('Could not find nonce in page meta tags.');
-          }
-        }
-      }
-    }
-    
-    // Log the request details for debugging
-    // console.log('Attempting to save robots.txt with payload:', payload);
-    // console.log('Endpoint:', endpoint);
-    // console.log('wpRestNonce available:', (window as any).wpRestNonce ? 'Yes' : 'No');
-    // if ((window as any).wpRestNonce) {
-    //   console.log('Nonce value (first few chars):', (window as any).wpRestNonce.substring(0, 5) + '...');
-    // }
-    
-    // Create headers object with all required headers
-    const headers: any = {
-      'Content-Type': 'application/json'
-    };
-    
-    // Only add the nonce if it exists
-    if ((window as any).wpRestNonce) {
-      headers['X-WP-Nonce'] = (window as any).wpRestNonce;
-    }
+    // Get auth headers
+    const headers = this.wpAuth.getAuthHeaders();
     
     // Add credentials to ensure cookies are sent
     this.http.post<{success: boolean, message: string, final_content: string}>(
@@ -317,7 +240,6 @@ export class AllowedBotsComponent implements OnInit {
       }
     ).subscribe({
       next: (response) => {
-        // console.log('robots.txt saved successfully:', response);
         // Extract only the BotShield section
         const botShieldMatch = response.final_content.match(/# Begin BotShield\s*([\s\S]*?)\s*# End BotShield/);
         if (botShieldMatch && botShieldMatch[1]) {
@@ -413,37 +335,23 @@ export class AllowedBotsComponent implements OnInit {
     this.commitRobotsTxt();
   }
 
-  // Add a public method to refresh the nonce
+  // Add a method to refresh the nonce
   refreshNonce() {
     console.log('Manually refreshing WordPress nonce...');
-    
-    // Try to get the nonce from AgentAIBotProtectData  first
-    if ((window as any).AgentAIBotProtectData  && (window as any).AgentAIBotProtectData .wpRestNonce) {
-      this.setNonce((window as any).AgentAIBotProtectData .wpRestNonce);
-      alert('Authentication token refreshed from AgentAIBotProtectData . Please try saving again.');
-      return;
-    }
-    
-    // Try to extract from script tag
-    const scriptTag = document.getElementById('agent-ai-bot-protect-module-js-extra');
-    if (scriptTag && scriptTag.textContent) {
-      const content = scriptTag.textContent;
-      const match = content.match(/var\s+AgentAIBotProtectData \s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
-      if (match && match[1]) {
-        this.setNonce(match[1]);
-        alert('Authentication token refreshed from script tag. Please try saving again.');
-        return;
+    this.wpAuth.refreshNonce().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.wpAuth.setNonce(response.data);
+          alert('Authentication token refreshed. Please try saving again.');
+        } else {
+          console.error('Failed to refresh nonce:', response);
+          alert('Failed to refresh authentication token. Please try logging in again.');
+        }
+      },
+      error: (error) => {
+        console.error('Error refreshing nonce:', error);
+        alert('Failed to refresh authentication token. Please try logging in again.');
       }
-    }
-    
-    // If we couldn't find it in the expected places, try to fetch a new one
-    this.fetchNewNonce();
-    alert('Authentication token refresh requested. Please try saving again in a few seconds.');
-  }
-  
-  // Method to set the nonce and log it
-  setNonce(nonce: string) {
-    // console.log('Setting nonce to:', nonce.substring(0, 5) + '...');
-    (window as any).wpRestNonce = nonce;
+    });
   }
 }
