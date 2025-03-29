@@ -16,7 +16,7 @@
     // Function to send data to our endpoint
     async function sendAnalyticsData(data) {
         try {
-            const response = await fetch('/wp-json/bot-shield/v1/log-visit', {
+            const response = await fetch('/wp-json/agent-ai-bot-protect/v1/log-visit', {
                 method: 'POST',
                 credentials: 'same-origin', // Include credentials
                 headers: {
@@ -42,7 +42,7 @@
             }
 
         } catch (error) {
-            console.error('Bot Shield Analytics Error:', error);
+            console.error('Agent AI Bot Protect Analytics Error:', error);
         }
     }
 

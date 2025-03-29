@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Bot Shield
+Plugin Name: Agent AI Bot Protect
 Description: Block AI bots by managing user agents and access patterns
 Version: 1.0.0
 Author: Agent Mantis
@@ -12,13 +12,13 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 if (!defined('ABSPATH')) exit;
 
 // Create database tables on plugin activation
-function bot_shield_activate() {
+function agent_ai_bot_protect_activate() {
     global $wpdb;
     $charset_collate = $wpdb->get_charset_collate();
  
     
-    // Create the bot_shield_counts table for aggregated data
-    $counts_table = $wpdb->prefix . 'bot_shield_counts';
+    // Create the agent_ai_bot_protect_counts table for aggregated data
+    $counts_table = $wpdb->prefix . 'agent_ai_bot_protect_counts';
     $counts_sql = "CREATE TABLE IF NOT EXISTS $counts_table (
         id bigint(20) NOT NULL AUTO_INCREMENT,
         bot_name varchar(255) NOT NULL,
@@ -32,13 +32,13 @@ function bot_shield_activate() {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($counts_sql);
     // Set version in options
-    update_option('bot_shield_db_version', '1.2');
+    update_option('agent_ai_bot_protect_db_version', '1.2');
 }
-register_activation_hook(__FILE__, 'bot_shield_activate');
+register_activation_hook(__FILE__, 'agent_ai_bot_protect_activate');
 
 // Check and update database structure
-function bot_shield_check_db_updates() {
-    $current_version = get_option('bot_shield_db_version', '1.0');
+function agent_ai_bot_protect_check_db_updates() {
+    $current_version = get_option('agent_ai_bot_protect_db_version', '1.0');
     
     // If we're already at the latest version, no need to continue
     if (version_compare($current_version, '1.2', '>=')) {
@@ -49,12 +49,12 @@ function bot_shield_check_db_updates() {
     
     // Update from 1.0 to 1.1 (add is_blocked column)
     if (version_compare($current_version, '1.1', '<')) {
-        $table_name = $wpdb->prefix . 'bot_shield_logs';
+        $table_name = $wpdb->prefix . 'agent_ai_bot_protect_logs';
         
         // Check if the table exists
         // Direct DB query is necessary here for schema operations that WordPress doesn't provide abstracted functions for
         // Using caching to avoid repeated queries
-        $cache_key = 'bot_shield_table_exists_' . $table_name;
+        $cache_key = 'agent_ai_bot_protect_table_exists_' . $table_name;
         $table_exists = wp_cache_get($cache_key);
         
         if (false === $table_exists) {
@@ -65,7 +65,7 @@ function bot_shield_check_db_updates() {
         if ($table_exists) {
             // Check if is_blocked column exists
             // Direct DB query is necessary for schema inspection
-            $column_cache_key = 'bot_shield_column_exists_is_blocked_' . $table_name;
+            $column_cache_key = 'agent_ai_bot_protect_column_exists_is_blocked_' . $table_name;
             $column_exists = wp_cache_get($column_cache_key);
             
             if (false === $column_exists) {
@@ -84,7 +84,7 @@ function bot_shield_check_db_updates() {
     
     // Update from 1.1 to 1.2 (add counts table)
     if (version_compare($current_version, '1.2', '<')) {
-        $counts_table = $wpdb->prefix . 'bot_shield_counts';
+        $counts_table = $wpdb->prefix . 'agent_ai_bot_protect_counts';
         $charset_collate = $wpdb->get_charset_collate();
         
         $counts_sql = "CREATE TABLE IF NOT EXISTS $counts_table (
@@ -102,14 +102,14 @@ function bot_shield_check_db_updates() {
     }
     
     // Update version
-    update_option('bot_shield_db_version', '1.2');
+    update_option('agent_ai_bot_protect_db_version', '1.2');
 }
-add_action('plugins_loaded', 'bot_shield_check_db_updates');
+add_action('plugins_loaded', 'agent_ai_bot_protect_check_db_updates');
 
 
 // Extract disallowed bots from robots.txt
-function bot_shield_get_disallowed_bots() {
-    $robots_txt_content = get_option('bot_shield_robots_txt', '');
+function agent_ai_bot_protect_get_disallowed_bots() {
+    $robots_txt_content = get_option('agent_ai_bot_protect_robots_txt', '');
     $disallowed_bots = array();
     
     // Extract bot names from User-agent lines
@@ -141,14 +141,14 @@ function bot_shield_get_disallowed_bots() {
 }
 
 // Check and block disallowed bots
-function bot_shield_check_and_block() {
+function agent_ai_bot_protect_check_and_block() {
     // Skip for admin users
     if (is_admin() || current_user_can('manage_options')) {
         return;
     }
     
     // Check if blocking is enabled
-    $blocking_enabled = get_option('bot_shield_blocking_enabled', '1') === '1';
+    $blocking_enabled = get_option('agent_ai_bot_protect_blocking_enabled', '1') === '1';
     
     // Get user agent
     $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
@@ -185,7 +185,7 @@ function bot_shield_check_and_block() {
     }
     
     // Get disallowed bots from site's robots.txt (via WordPress option) - these will be blocked
-    $disallowed_bots = bot_shield_get_disallowed_bots();
+    $disallowed_bots = agent_ai_bot_protect_get_disallowed_bots();
     
     // Flag to track if we've already counted this bot
     $bot_counted = false;
@@ -196,7 +196,7 @@ function bot_shield_check_and_block() {
         foreach ($disallowed_bots as $bot) {
             if (stripos($user_agent, $bot) !== false) {
                 // Log the bot hit and mark as blocked
-                bot_shield_increment_bot_count($bot, true);
+                agent_ai_bot_protect_increment_bot_count($bot, true);
                 $bot_counted = true;
                 $matched_bot_name = $bot;
                 
@@ -205,7 +205,7 @@ function bot_shield_check_and_block() {
                 nocache_headers();
                 echo '<html><head><title>403 Forbidden</title></head><body>';
                 echo '<h1>403 Forbidden</h1>';
-                echo '<p>Access to this resource is denied by Bot Shield.</p>';
+                echo '<p>Access to this resource is denied by Agent AI Bot Protect.</p>';
                 echo '</body></html>';
                 exit;
             }
@@ -217,7 +217,7 @@ function bot_shield_check_and_block() {
         foreach ($known_bots as $bot) {
             if (stripos($user_agent, $bot) !== false) {
                 // Log the bot hit (increment counter) but don't block
-                bot_shield_increment_bot_count($bot, false);
+                agent_ai_bot_protect_increment_bot_count($bot, false);
                 break; // Only count once if multiple patterns match
             }
         }
@@ -225,21 +225,21 @@ function bot_shield_check_and_block() {
 }
 
 // Increment bot count
-function bot_shield_increment_bot_count($bot_name, $was_blocked = false) {
+function agent_ai_bot_protect_increment_bot_count($bot_name, $was_blocked = false) {
     global $wpdb;
-    $table_name = $wpdb->prefix . 'bot_shield_counts';
+    $table_name = $wpdb->prefix . 'agent_ai_bot_protect_counts';
     $today = current_time('Y-m-d');
     
     // Direct DB queries are necessary here for performance reasons when tracking bot hits
     // We're using a custom table structure optimized for aggregating bot statistics
     // Using a transient-based locking mechanism to prevent race conditions on high-traffic sites
-    $lock_key = 'bot_shield_lock_' . md5($bot_name . $today);
+    $lock_key = 'agent_ai_bot_protect_lock_' . md5($bot_name . $today);
     
     // Try to get the lock
     if (get_transient($lock_key)) {
         // Another process is updating this record, wait a moment and try again
         usleep(100000); // Wait 100ms
-        bot_shield_increment_bot_count($bot_name, $was_blocked);
+        agent_ai_bot_protect_increment_bot_count($bot_name, $was_blocked);
         return;
     }
     
@@ -278,10 +278,10 @@ function bot_shield_increment_bot_count($bot_name, $was_blocked = false) {
 }
 
 // Hook into WordPress init to check and block bots
-add_action('init', 'bot_shield_check_and_block', 1);
+add_action('init', 'agent_ai_bot_protect_check_and_block', 1);
 
 // Enqueue Angular scripts and styles
-function bot_shield_enqueue_scripts() {
+function agent_ai_bot_protect_enqueue_scripts() {
     $plugin_dir_url = plugin_dir_url(__FILE__);
 
     // Check if we're NOT in admin
@@ -303,8 +303,8 @@ function bot_shield_enqueue_scripts() {
 
         // Enqueue main analytics script
         wp_enqueue_script(
-            'bot-shield-agent',
-            $plugin_dir_url . 'bot-shield-agent.js',
+            'agent-ai-bot-protect-agent',
+            $plugin_dir_url . 'agent-ai-bot-protect-agent.js',
             array(), 
             '1.0.0',
             true 
@@ -312,7 +312,7 @@ function bot_shield_enqueue_scripts() {
         
         // Add async attribute to the script
         add_filter('script_loader_tag', function($tag, $handle) {
-            if ('bot-shield-agent' === $handle) {
+            if ('agent-ai-bot-protect-agent' === $handle) {
                 return str_replace(' src', ' async src', $tag);
             }
             return $tag;
@@ -320,11 +320,11 @@ function bot_shield_enqueue_scripts() {
     }
 
     // Only load admin-specific scripts on our admin page
-    if (isset($_GET['page']) && $_GET['page'] === 'bot-shield') {
+    if (isset($_GET['page']) && $_GET['page'] === 'agent-ai-bot-protect') {
         // Enqueue the module script
         wp_enqueue_script(
-            'bot-shield-module',
-            $plugin_dir_url . 'dist/bot-shield.js',
+            'agent-ai-bot-protect-module',
+            $plugin_dir_url . 'dist/agent-ai-bot-protect.js',
             array(),
             '1.0.0',
             true
@@ -332,7 +332,7 @@ function bot_shield_enqueue_scripts() {
         
         // Add the module type to the script tag
         add_filter('script_loader_tag', function($tag, $handle) {
-            if ('bot-shield-module' === $handle) {
+            if ('agent-ai-bot-protect-module' === $handle) {
                 return str_replace(' src', ' type="module" src', $tag);
             }
             return $tag;
@@ -340,7 +340,7 @@ function bot_shield_enqueue_scripts() {
         
         // Add the REST API nonce to the script
         wp_localize_script(
-            'bot-shield-module',
+            'agent-ai-bot-protect-module',
             'botShieldData',
             array(
                 'wpRestNonce' => wp_create_nonce('wp_rest')
@@ -349,8 +349,8 @@ function bot_shield_enqueue_scripts() {
 
         // Enqueue the styles normally
         wp_enqueue_style(
-            'bot-shield-styles', 
-            $plugin_dir_url . 'dist/bot-shield.css', 
+            'agent-ai-bot-protect-styles', 
+            $plugin_dir_url . 'dist/agent-ai-bot-protect.css', 
             [], 
             '1.0.0'
         );
@@ -358,60 +358,60 @@ function bot_shield_enqueue_scripts() {
 }
 
 // Hook into both admin and frontend script enqueueing
-add_action('admin_enqueue_scripts', 'bot_shield_enqueue_scripts');
-add_action('wp_enqueue_scripts', 'bot_shield_enqueue_scripts');
+add_action('admin_enqueue_scripts', 'agent_ai_bot_protect_enqueue_scripts');
+add_action('wp_enqueue_scripts', 'agent_ai_bot_protect_enqueue_scripts');
 
 // Add settings link to plugins page
-function bot_shield_add_settings_link($links) {
-    $settings_link = '<a href="admin.php?page=bot-shield">Settings</a>';
+function agent_ai_bot_protect_add_settings_link($links) {
+    $settings_link = '<a href="admin.php?page=agent-ai-bot-protect">Settings</a>';
     array_unshift($links, $settings_link);
     return $links;
 }
-add_filter('plugin_action_links_bot-shield/bot-shield.php', 'bot_shield_add_settings_link');
+add_filter('plugin_action_links_agent-ai-bot-protect/agent-ai-bot-protect.php', 'agent_ai_bot_protect_add_settings_link');
 
 // Add menu item
-function bot_shield_add_admin_menu() {
+function agent_ai_bot_protect_add_admin_menu() {
     add_menu_page(
-        'Bot Shield',         // Page title
-        'Bot Shield',         // Menu title
+        'Agent AI Bot Protect',         // Page title
+        'Agent AI Bot Protect',         // Menu title
         'manage_options',     // Capability
-        'bot-shield',         // Menu slug
+        'agent-ai-bot-protect',         // Menu slug
         function() {          // Callback function
             ?>
             <div class="wrap mat-typography">
-                <bot-shield></bot-shield>
+                <agent-ai-bot-protect></agent-ai-bot-protect>
             </div>
             <?php
         },
-        plugin_dir_url(__FILE__) . 'dist/assets/botshieldus-icon.svg', // Path to your SVG or image
+        plugin_dir_url(__FILE__) . 'dist/assets/icon.svg', // Path to your SVG or image
         30                    // Position
     );
 }
-add_action('admin_menu', 'bot_shield_add_admin_menu');
+add_action('admin_menu', 'agent_ai_bot_protect_add_admin_menu');
 
 // Add REST API endpoint for saving robots.txt
-function bot_shield_register_routes() {
-    register_rest_route('bot-shield/v1', '/save-robots-txt', [
+function agent_ai_bot_protect_register_routes() {
+    register_rest_route('agent-ai-bot-protect/v1', '/save-robots-txt', [
         'methods' => 'POST',
-        'callback' => 'bot_shield_save_robots_txt',
+        'callback' => 'agent_ai_bot_protect_save_robots_txt',
         'permission_callback' => function() {
             return current_user_can('manage_options');
         }
     ]);
 
     // New endpoint for log analysis
-    register_rest_route('bot-shield/v1', '/analyze-logs', [
+    register_rest_route('agent-ai-bot-protect/v1', '/analyze-logs', [
         'methods' => 'GET',
-        'callback' => 'bot_shield_analyze_logs',
+        'callback' => 'agent_ai_bot_protect_analyze_logs',
         'permission_callback' => function() {
             return current_user_can('manage_options');
         }
     ]);
     
     // Add endpoint for getting bot stats by date range
-    register_rest_route('bot-shield/v1', '/bot-stats', [
+    register_rest_route('agent-ai-bot-protect/v1', '/bot-stats', [
         'methods' => 'GET',
-        'callback' => 'bot_shield_get_stats',
+        'callback' => 'agent_ai_bot_protect_get_stats',
         'permission_callback' => function() {
             return current_user_can('manage_options');
         },
@@ -427,10 +427,10 @@ function bot_shield_register_routes() {
         ]
     ]);
 
-    // Add this to your bot_shield_register_routes function
-    register_rest_route('bot-shield/v1', '/log-visit', [
+    // Add this to your agent_ai_bot_protect_register_routes function
+    register_rest_route('agent-ai-bot-protect/v1', '/log-visit', [
         'methods' => 'POST',
-        'callback' => 'bot_shield_log_visit',
+        'callback' => 'agent_ai_bot_protect_log_visit',
         'permission_callback' => '__return_true', // Allow public access
         'args' => [
             'userAgent' => [
@@ -452,9 +452,9 @@ function bot_shield_register_routes() {
     ]);
     
     // Add endpoint to toggle bot blocking
-    register_rest_route('bot-shield/v1', '/toggle-blocking', [
+    register_rest_route('agent-ai-bot-protect/v1', '/toggle-blocking', [
         'methods' => 'POST',
-        'callback' => 'bot_shield_toggle_blocking',
+        'callback' => 'agent_ai_bot_protect_toggle_blocking',
         'permission_callback' => function() {
             return current_user_can('manage_options');
         },
@@ -467,18 +467,18 @@ function bot_shield_register_routes() {
     ]);
     
     // Add endpoint to get blocking status
-    register_rest_route('bot-shield/v1', '/blocking-status', [
+    register_rest_route('agent-ai-bot-protect/v1', '/blocking-status', [
         'methods' => 'GET',
-        'callback' => 'bot_shield_get_blocking_status',
+        'callback' => 'agent_ai_bot_protect_get_blocking_status',
         'permission_callback' => function() {
             return current_user_can('manage_options');
         }
     ]);
 }
-add_action('rest_api_init', 'bot_shield_register_routes');
+add_action('rest_api_init', 'agent_ai_bot_protect_register_routes');
 
 // Handle saving robots.txt file
-function bot_shield_save_robots_txt($request) {
+function agent_ai_bot_protect_save_robots_txt($request) {
     // Get content parameter and ensure it's a string
     $content = $request->get_param('content');
     $content = is_null($content) ? '' : (string)$content;
@@ -488,10 +488,10 @@ function bot_shield_save_robots_txt($request) {
     $should_clear = !empty($clear);
     
     // Debug logging
-    error_log('Bot Shield: Received request params - content: ' . var_export($content, true) . ', clear: ' . var_export($clear, true));
+    error_log('Agent AI Bot Protect: Received request params - content: ' . var_export($content, true) . ', clear: ' . var_export($clear, true));
     
     // Read existing content
-    $existing_content = get_option('bot_shield_robots_txt', '');
+    $existing_content = get_option('agent_ai_bot_protect_robots_txt', '');
     if (empty($existing_content)) {
         // Default robots.txt content if none exists
         $existing_content = "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n";
@@ -504,7 +504,7 @@ function bot_shield_save_robots_txt($request) {
     // If content is empty or clear is true, just save without BotShield section
     if (empty($content) || $should_clear) {
         $final_content = trim($existing_content) . "\n";
-        error_log('Bot Shield: Clearing BotShield section. Final content: ' . var_export($final_content, true));
+        error_log('Agent AI Bot Protect: Clearing BotShield section. Final content: ' . var_export($final_content, true));
     } else {
         // Prepare new BotShield section
         $new_section = "# Begin BotShield\n";
@@ -516,7 +516,7 @@ function bot_shield_save_robots_txt($request) {
     }
 
     // Save the final content to WordPress option
-    update_option('bot_shield_robots_txt', $final_content);
+    update_option('agent_ai_bot_protect_robots_txt', $final_content);
 
     // Return the final content
     return [
@@ -527,25 +527,25 @@ function bot_shield_save_robots_txt($request) {
 }
 
 // Add this function to serve the robots.txt content
-function bot_shield_serve_robots_txt($robots_txt, $public = 1) {
-    $custom_content = get_option('bot_shield_robots_txt');
+function agent_ai_bot_protect_serve_robots_txt($robots_txt, $public = 1) {
+    $custom_content = get_option('agent_ai_bot_protect_robots_txt');
     if (!empty($custom_content)) {
         return $custom_content;
     }
     return $robots_txt;
 }
-add_filter('robots_txt', 'bot_shield_serve_robots_txt');
+add_filter('robots_txt', 'agent_ai_bot_protect_serve_robots_txt');
 
 // Analyze logs
-function bot_shield_analyze_logs() {
+function agent_ai_bot_protect_analyze_logs() {
     global $wpdb;
-    $counts_table = $wpdb->prefix . 'bot_shield_counts';
+    $counts_table = $wpdb->prefix . 'agent_ai_bot_protect_counts';
     
     // Direct DB queries are necessary here for complex aggregation queries on custom tables
     // We're implementing caching to improve performance
     
     // Cache key for the entire analytics response
-    $cache_key = 'bot_shield_analytics_30days';
+    $cache_key = 'agent_ai_bot_protect_analytics_30days';
     $cached_response = wp_cache_get($cache_key);
     
     if (false !== $cached_response) {
@@ -553,7 +553,7 @@ function bot_shield_analyze_logs() {
     }
     
     // Get total hits and blocks for the last 30 days
-    $stats_cache_key = 'bot_shield_stats_totals_30days';
+    $stats_cache_key = 'agent_ai_bot_protect_stats_totals_30days';
     $stats = wp_cache_get($stats_cache_key);
     
     if (false === $stats) {
@@ -569,7 +569,7 @@ function bot_shield_analyze_logs() {
     $total_blocks = $stats ? (int)$stats->total_blocks : 0;
     
     // Get bot-specific stats
-    $bot_stats_cache_key = 'bot_shield_bot_stats_30days';
+    $bot_stats_cache_key = 'agent_ai_bot_protect_bot_stats_30days';
     $bot_stats = wp_cache_get($bot_stats_cache_key);
     
     if (false === $bot_stats) {
@@ -584,7 +584,7 @@ function bot_shield_analyze_logs() {
     }
     
     // Get daily stats for the last 30 days
-    $daily_stats_cache_key = 'bot_shield_daily_stats_30days';
+    $daily_stats_cache_key = 'agent_ai_bot_protect_daily_stats_30days';
     $daily_stats = wp_cache_get($daily_stats_cache_key);
     
     if (false === $daily_stats) {
@@ -627,7 +627,7 @@ function bot_shield_analyze_logs() {
 }
 
 // Log visit (for client-side detection - keep for backward compatibility)
-function bot_shield_log_visit($request) {
+function agent_ai_bot_protect_log_visit($request) {
     $data = $request->get_params();
     
     $is_bot = preg_match('/bot|crawl|spider|slurp|search|agent/i', $data['userAgent']) ? 1 : 0;
@@ -635,7 +635,7 @@ function bot_shield_log_visit($request) {
     if ($is_bot) {
         $bot_name = extract_bot_name($data['userAgent']);
         // Only increment count for bots
-        bot_shield_increment_bot_count($bot_name, false);
+        agent_ai_bot_protect_increment_bot_count($bot_name, false);
     }
     
     return rest_ensure_response([
@@ -653,7 +653,7 @@ function extract_bot_name($user_agent) {
 }
 
 // Add CORS headers
-function bot_shield_add_cors_headers() {
+function agent_ai_bot_protect_add_cors_headers() {
     header('Access-Control-Allow-Origin: ' . esc_url_raw(site_url()));
     header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
     header('Access-Control-Allow-Credentials: true');
@@ -666,13 +666,13 @@ function bot_shield_add_cors_headers() {
 }
 add_action('rest_api_init', function() {
     remove_filter('rest_pre_serve_request', 'rest_send_cors_headers');
-    add_filter('rest_pre_serve_request', 'bot_shield_add_cors_headers');
+    add_filter('rest_pre_serve_request', 'agent_ai_bot_protect_add_cors_headers');
 }, 15);
 
-function bot_shield_admin_styles() {
+function agent_ai_bot_protect_admin_styles() {
     echo '
     <style>
-        #toplevel_page_bot-shield .wp-menu-image img {
+        #toplevel_page_agent-ai-bot-protect .wp-menu-image img {
             height: 25px;
             padding: 0px;
             margin-top: 3px;
@@ -681,12 +681,12 @@ function bot_shield_admin_styles() {
     </style>
     ';
 }
-add_action('admin_head', 'bot_shield_admin_styles');
+add_action('admin_head', 'agent_ai_bot_protect_admin_styles');
 
 // Toggle bot blocking
-function bot_shield_toggle_blocking($request) {
+function agent_ai_bot_protect_toggle_blocking($request) {
     $enabled = $request->get_param('enabled');
-    update_option('bot_shield_blocking_enabled', $enabled ? '1' : '0');
+    update_option('agent_ai_bot_protect_blocking_enabled', $enabled ? '1' : '0');
     
     return rest_ensure_response([
         'success' => true,
@@ -695,8 +695,8 @@ function bot_shield_toggle_blocking($request) {
 }
 
 // Get blocking status
-function bot_shield_get_blocking_status() {
-    $enabled = get_option('bot_shield_blocking_enabled', '1');
+function agent_ai_bot_protect_get_blocking_status() {
+    $enabled = get_option('agent_ai_bot_protect_blocking_enabled', '1');
     
     return rest_ensure_response([
         'success' => true,
@@ -705,9 +705,9 @@ function bot_shield_get_blocking_status() {
 }
 
 // Get bot stats by date range
-function bot_shield_get_stats($request) {
+function agent_ai_bot_protect_get_stats($request) {
     global $wpdb;
-    $counts_table = $wpdb->prefix . 'bot_shield_counts';
+    $counts_table = $wpdb->prefix . 'agent_ai_bot_protect_counts';
     
     // Get date range parameters
     $start_date = $request->get_param('start_date');
@@ -726,7 +726,7 @@ function bot_shield_get_stats($request) {
     // We're implementing caching to improve performance
     
     // Cache key for the entire stats response for this date range
-    $cache_key = 'bot_shield_stats_' . md5($start_date . '_' . $end_date);
+    $cache_key = 'agent_ai_bot_protect_stats_' . md5($start_date . '_' . $end_date);
     $cached_response = wp_cache_get($cache_key);
     
     if (false !== $cached_response) {
@@ -734,7 +734,7 @@ function bot_shield_get_stats($request) {
     }
     
     // Get bot stats for the date range
-    $bot_stats_cache_key = 'bot_shield_bot_stats_' . md5($start_date . '_' . $end_date);
+    $bot_stats_cache_key = 'agent_ai_bot_protect_bot_stats_' . md5($start_date . '_' . $end_date);
     $bot_stats = wp_cache_get($bot_stats_cache_key);
     
     if (false === $bot_stats) {
@@ -754,7 +754,7 @@ function bot_shield_get_stats($request) {
     }
     
     // Get daily stats for the date range
-    $daily_stats_cache_key = 'bot_shield_daily_stats_' . md5($start_date . '_' . $end_date);
+    $daily_stats_cache_key = 'agent_ai_bot_protect_daily_stats_' . md5($start_date . '_' . $end_date);
     $daily_stats = wp_cache_get($daily_stats_cache_key);
     
     if (false === $daily_stats) {

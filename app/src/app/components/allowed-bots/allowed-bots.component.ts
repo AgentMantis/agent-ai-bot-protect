@@ -44,7 +44,7 @@ export class AllowedBotsComponent implements OnInit {
 
   ngOnInit() {
     // Try to set the nonce directly from the script tag
-    const scriptTag = document.getElementById('bot-shield-module-js-extra');
+    const scriptTag = document.getElementById('agent-ai-bot-protect-module-js-extra');
     if (scriptTag && scriptTag.textContent) {
       const content = scriptTag.textContent;
       const match = content.match(/var\s+botShieldData\s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
@@ -244,7 +244,7 @@ export class AllowedBotsComponent implements OnInit {
   }
 
   saveRobotsTxt(content: string) {
-    const endpoint = '/wp-json/bot-shield/v1/save-robots-txt';
+    const endpoint = '/wp-json/agent-ai-bot-protect/v1/save-robots-txt';
     
     // Ensure content is always a string, even if null or undefined
     const safeContent = content || '';
@@ -267,7 +267,7 @@ export class AllowedBotsComponent implements OnInit {
         this.setNonce((window as any).botShieldData.wpRestNonce);
       } else {
         // Try to extract from script tag
-        const scriptTag = document.getElementById('bot-shield-module-js-extra');
+        const scriptTag = document.getElementById('agent-ai-bot-protect-module-js-extra');
         if (scriptTag && scriptTag.textContent) {
           const content = scriptTag.textContent;
           const match = content.match(/var\s+botShieldData\s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);
@@ -425,7 +425,7 @@ export class AllowedBotsComponent implements OnInit {
     }
     
     // Try to extract from script tag
-    const scriptTag = document.getElementById('bot-shield-module-js-extra');
+    const scriptTag = document.getElementById('agent-ai-bot-protect-module-js-extra');
     if (scriptTag && scriptTag.textContent) {
       const content = scriptTag.textContent;
       const match = content.match(/var\s+botShieldData\s*=\s*\{[^}]*wpRestNonce[^}]*:\s*["']([^"']*)["']/);

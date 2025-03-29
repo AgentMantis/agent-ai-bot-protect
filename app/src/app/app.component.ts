@@ -5,7 +5,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatButtonModule } from '@angular/material/button';
 
 @Component({
-  selector: 'bot-shield',
+  selector: 'agent-ai-bot-protect',
   imports: [RouterModule, RouterOutlet, CommonModule, RouterLink, MatTabsModule, MatButtonModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
@@ -13,5 +13,5 @@ import { MatButtonModule } from '@angular/material/button';
   encapsulation: ViewEncapsulation.ShadowDom
 })
 export class AppComponent {
-  title = 'bot-shield';
+  title = 'agent-ai-bot-protect';
 }

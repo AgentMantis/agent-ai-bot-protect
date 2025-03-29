@@ -47,7 +47,7 @@ export class BotAnalysisService {
   constructor(private http: HttpClient) {}
 
   analyzeLogs(): Observable<BotAnalysisResponse> {
-    const endpoint = '/wp-json/bot-shield/v1/analyze-logs';
+    const endpoint = '/wp-json/agent-ai-bot-protect/v1/analyze-logs';
     
     return this.http.get<BotAnalysisResponse>(endpoint, {
       headers: {
@@ -57,7 +57,7 @@ export class BotAnalysisService {
   }
   
   getBotStats(startDate?: string, endDate?: string): Observable<BotStatsResponse> {
-    let endpoint = '/wp-json/bot-shield/v1/bot-stats';
+    let endpoint = '/wp-json/agent-ai-bot-protect/v1/bot-stats';
     
     // Add date range parameters if provided
     const params: string[] = [];

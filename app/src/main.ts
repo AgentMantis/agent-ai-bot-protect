@@ -20,11 +20,11 @@
 //   });
   
 //   // Register the custom element with the browser
-//   customElements.define('bot-shield', botShieldElement);
+//   customElements.define('agent-ai-bot-protect', botShieldElement);
 // };
 
 // // Initialize the element
-// bootstrap().catch(err => console.error('Error initializing bot-shield:', err));
+// bootstrap().catch(err => console.error('Error initializing agent-ai-bot-protect:', err));
 
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';

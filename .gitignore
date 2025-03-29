@@ -1,5 +1,5 @@
-plugins/bot-shield/dist
-plugins/bot-shield/*.zip
+plugins/agent-ai-bot-protect/dist
+plugins/agent-ai-bot-protect/*.zip
 plugins/*.zip
 
 
