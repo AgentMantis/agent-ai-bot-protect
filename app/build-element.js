@@ -4,7 +4,7 @@ const rollup = require('rollup');
 
 (async function build() {
   const distPath = path.join(__dirname, 'dist/agent-ai-bot-protect/browser');
-  const wpPluginPath = path.join('D:', 'source', 'repos', 'BotShield', 'plugins', 'agent-ai-bot-protect', 'dist');
+  const wpPluginPath = path.join('D:', 'source', 'repos', 'agent-ai-bot-protect', 'plugins', 'agent-ai-bot-protect', 'dist');
   
   try {
     // Read the directory contents

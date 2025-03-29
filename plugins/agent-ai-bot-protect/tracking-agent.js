@@ -7,7 +7,7 @@
     let mouseMovements = 0;
     
     // Get the initial data we captured
-    const initialData = window._botShieldInitialData || {
+    const initialData = window._agentAIBotProtectInitialData || {
         userAgent: navigator.userAgent,
         timestamp: new Date().getTime(),
         referrer: document.referrer
@@ -186,7 +186,7 @@
             ctx.fillStyle = "#f60";
             ctx.fillRect(125, 1, 62, 20);
             ctx.fillStyle = "#069";
-            ctx.fillText("BotShield", 2, 15);
+            ctx.fillText("agentAIBotProtect", 2, 15);
             ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
             ctx.fillText("Fingerprint", 4, 17);
             

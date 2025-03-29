@@ -303,8 +303,8 @@ function agent_ai_bot_protect_enqueue_scripts() {
 
         // Enqueue main analytics script
         wp_enqueue_script(
-            'agent-ai-bot-protect-agent',
-            $plugin_dir_url . 'agent-ai-bot-protect-agent.js',
+            'tracking-agent',
+            $plugin_dir_url . 'tracking-agent.js',
             array(), 
             '1.0.0',
             true 
@@ -312,7 +312,7 @@ function agent_ai_bot_protect_enqueue_scripts() {
         
         // Add async attribute to the script
         add_filter('script_loader_tag', function($tag, $handle) {
-            if ('agent-ai-bot-protect-agent' === $handle) {
+            if ('tracking-agent' === $handle) {
                 return str_replace(' src', ' async src', $tag);
             }
             return $tag;
@@ -341,7 +341,7 @@ function agent_ai_bot_protect_enqueue_scripts() {
         // Add the REST API nonce to the script
         wp_localize_script(
             'agent-ai-bot-protect-module',
-            'botShieldData',
+            'AgentAIBotProtectData',
             array(
                 'wpRestNonce' => wp_create_nonce('wp_rest')
             )
@@ -673,10 +673,10 @@ function agent_ai_bot_protect_admin_styles() {
     echo '
     <style>
         #toplevel_page_agent-ai-bot-protect .wp-menu-image img {
-            height: 25px;
+            height: 15px;
             padding: 0px;
-            margin-top: 3px;
-            margin-left: 8px;
+            margin-top: 15px;
+            margin-left: 5px;
         }
     </style>
     ';
