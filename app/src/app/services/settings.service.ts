@@ -1,13 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, switchMap, shareReplay } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { WordPressAuthService } from './wordpress-auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SettingsService {
-  private readonly ROBOTS_TXT_URL_KEY = 'robotsTxtUrl';
   private defaultRobotsTxtUrl = '/wp-content/plugins/agent-ai-bot-protect/dist/assets/robots.txt';
   
   private robotsTxtUrlSubject = new BehaviorSubject<string>(this.defaultRobotsTxtUrl);
@@ -16,25 +15,29 @@ export class SettingsService {
     shareReplay(1)
   );
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private wpAuth: WordPressAuthService
+  ) {
     // Initialize by checking WordPress option
     this.initializeRobotsTxtUrl();
   }
 
   private initializeRobotsTxtUrl() {
-    this.http.get<{ url: string }>(`${environment.wordpressUrl}/wp-json/agent-ai-bot-protect/v1/robots-txt-url`)
-      .subscribe({
-        next: (response) => {
-          if (response.url) {
-            this.robotsTxtUrlSubject.next(response.url);
-          }
-        },
-        error: (error) => {
-          console.error('Error fetching robots.txt URL from WordPress:', error);
-          // Fallback to default URL if WordPress option is not available
-          this.robotsTxtUrlSubject.next(this.defaultRobotsTxtUrl);
+    this.http.get<{ url: string }>(`/wp-json/agent-ai-bot-protect/v1/robots-txt-url`, {
+      headers: this.wpAuth.getAuthHeaders()
+    }).subscribe({
+      next: (response) => {
+        if (response.url) {
+          this.robotsTxtUrlSubject.next(response.url);
         }
-      });
+      },
+      error: (error) => {
+        console.error('Error fetching robots.txt URL from WordPress:', error);
+        // Fallback to default URL if WordPress option is not available
+        this.robotsTxtUrlSubject.next(this.defaultRobotsTxtUrl);
+      }
+    });
   }
 
   getRobotsTxtUrl(): Observable<string> {
@@ -47,15 +50,16 @@ export class SettingsService {
 
   setRobotsTxtUrl(url: string): void {
     // Save to WordPress via REST API
-    this.http.post(`${environment.wordpressUrl}/wp-json/agent-ai-bot-protect/v1/robots-txt-url`, { url })
-      .subscribe({
-        next: () => {
-          this.robotsTxtUrlSubject.next(url);
-        },
-        error: (error) => {
-          console.error('Error saving robots.txt URL to WordPress:', error);
-          // You might want to handle the error appropriately here
-        }
-      });
+    this.http.post(`/wp-json/agent-ai-bot-protect/v1/robots-txt-url`, { url }, {
+      headers: this.wpAuth.getAuthHeaders()
+    }).subscribe({
+      next: () => {
+        this.robotsTxtUrlSubject.next(url);
+      },
+      error: (error) => {
+        console.error('Error saving robots.txt URL to WordPress:', error);
+        // You might want to handle the error appropriately here
+      }
+    });
   }
 } 

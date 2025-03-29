@@ -9,18 +9,15 @@ const rollup = require('rollup');
   try {
     // Read the directory contents
     const files = await fs.readdir(distPath);
-    console.log('Files in browser directory:', files);
     
     // Find the files
     const polyfillsFile = files.find(f => f.startsWith('polyfills-') && f.endsWith('.js'));
     const mainFile = files.find(f => f.startsWith('main-') && f.endsWith('.js'));
     const styleFile = files.find(f => f.startsWith('styles') && f.endsWith('.css'));
     
-    if (!polyfillsFile || !mainFile) {
-      throw new Error(`Could not find required JS files in ${distPath}`);
+    if (!polyfillsFile || !mainFile || !styleFile) {
+      throw new Error('Required files not found in browser directory');
     }
-
-    console.log('Found files:', { polyfillsFile, mainFile, styleFile });
 
     // Ensure WordPress plugin dist directory exists
     await fs.ensureDir(wpPluginPath);
@@ -52,8 +49,6 @@ const rollup = require('rollup');
 
     // Clean up entry file
     await fs.remove(entryFile);
-    
-    console.log('JS bundle created successfully!');
 
     // Copy styles if they exist
     if (styleFile) {
@@ -61,7 +56,6 @@ const rollup = require('rollup');
         path.join(distPath, styleFile),
         path.join(wpPluginPath, 'agent-ai-bot-protect.css')
       );
-      console.log('Styles copied successfully!');
     }
 
     // Read and update the JS file
@@ -79,7 +73,6 @@ const rollup = require('rollup');
     );
 
     await fs.writeFile(jsFilePath, jsContent);
-    console.log('JS asset paths updated successfully!');
 
     // Read and update the CSS file
     const cssFilePath = path.join(wpPluginPath, 'agent-ai-bot-protect.css');
@@ -89,23 +82,18 @@ const rollup = require('rollup');
       'url(/wp-content/plugins/agent-ai-bot-protect/dist/assets/'
     );
     await fs.writeFile(cssFilePath, cssContent);
-    console.log('CSS asset paths updated successfully!');
 
     // Copy assets directory
     const assetsPath = path.join(distPath, 'assets');
     await fs.copy(assetsPath, path.join(wpPluginPath, 'assets'), {
       overwrite: true
     });
-    console.log('Assets directory copied successfully!');
 
     // Copy media directory
     const mediaPath = path.join(distPath, 'media');
     await fs.copy(mediaPath, path.join(wpPluginPath, 'media'), {
       overwrite: true
     });
-    console.log('Media directory copied successfully!');
-
-    console.log('Build completed successfully!');
   } catch (error) {
     console.error('Build failed:', error);
     process.exit(1);

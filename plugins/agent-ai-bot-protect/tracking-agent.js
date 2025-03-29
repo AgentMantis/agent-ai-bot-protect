@@ -507,7 +507,6 @@
         
         // Optionally, take action if it's a bot
         if (botScore >= BOT_THRESHOLD) {
-            console.log('Bot detected with score:', botScore);
             // You could redirect, show a captcha, or take other actions here
         }
     }
@@ -536,7 +535,6 @@
     window.fetch = function() {
         return originalFetch.apply(this, arguments)
             .then(response => {
-                console.log('Request Headers:', response.headers);
                 return response;
             });
     }
@@ -549,18 +547,11 @@
         
         xhr.open = function() {
             xhr.addEventListener('load', function() {
-                console.log('XHR Headers:', this.getAllResponseHeaders());
+                this.getAllResponseHeaders();
             });
             return originalOpen.apply(this, arguments);
         };
         
         return xhr;
     };
-
-    // Log initial page request headers
-    console.log('Page Request Headers:', {
-        'User-Agent': navigator.userAgent,
-        'Accept-Language': navigator.language,
-        'Referrer': document.referrer,
-    });
 })();

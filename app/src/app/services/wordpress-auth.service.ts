@@ -7,7 +7,6 @@ import { Observable } from 'rxjs';
 })
 export class WordPressAuthService {
   constructor(private http: HttpClient) {
-    console.log('WordPressAuthService initialized');
   }
 
   getNonce(): string | null {
@@ -32,13 +31,10 @@ export class WordPressAuthService {
       return nonceElement.getAttribute('content');
     }
 
-    console.log('No nonce found in any location');
     return null;
   }
 
   refreshNonce(): Observable<any> {
-    console.log('Refreshing WordPress nonce...');
-    
     // Try to get the nonce from AgentAIBotProtectData first
     if ((window as any).AgentAIBotProtectData?.wpRestNonce) {
       return new Observable(subscriber => {

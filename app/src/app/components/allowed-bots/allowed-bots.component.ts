@@ -337,7 +337,6 @@ export class AllowedBotsComponent implements OnInit {
 
   // Add a method to refresh the nonce
   refreshNonce() {
-    console.log('Manually refreshing WordPress nonce...');
     this.wpAuth.refreshNonce().subscribe({
       next: (response) => {
         if (response.success && response.data) {

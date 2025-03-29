@@ -49,11 +49,9 @@ export class BotAnalysisService {
     private http: HttpClient,
     private wpAuth: WordPressAuthService
   ) {
-    console.log('BotAnalysisService initialized');
   }
 
   analyzeLogs(): Observable<BotAnalysisResponse> {
-    console.log('analyzeLogs called');
     const endpoint = '/wp-json/agent-ai-bot-protect/v1/analyze-logs';
     
     return this.http.get<BotAnalysisResponse>(endpoint, {
@@ -62,8 +60,6 @@ export class BotAnalysisService {
   }
   
   getBotStats(startDate?: string, endDate?: string): Observable<BotStatsResponse> {
-    console.log('getBotStats called with dates:', { startDate, endDate });
-    
     let endpoint = '/wp-json/agent-ai-bot-protect/v1/bot-stats';
     
     // Add date range parameters if provided
@@ -78,9 +74,6 @@ export class BotAnalysisService {
     if (params.length > 0) {
       endpoint += '?' + params.join('&');
     }
-    
-    console.log('Making request to endpoint:', endpoint);
-    console.log('Request headers:', this.wpAuth.getAuthHeaders());
     
     return this.http.get<BotStatsResponse>(endpoint, {
       headers: this.wpAuth.getAuthHeaders()
