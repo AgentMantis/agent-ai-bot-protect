@@ -474,6 +474,29 @@ function agent_ai_bot_protect_register_routes() {
             return current_user_can('manage_options');
         }
     ]);
+
+    // Add endpoint for robots.txt URL management
+    register_rest_route('agent-ai-bot-protect/v1', '/robots-txt-url', [
+        'methods' => 'GET',
+        'callback' => 'agent_ai_bot_protect_get_robots_txt_url',
+        'permission_callback' => function() {
+            return current_user_can('manage_options');
+        }
+    ]);
+
+    register_rest_route('agent-ai-bot-protect/v1', '/robots-txt-url', [
+        'methods' => 'POST',
+        'callback' => 'agent_ai_bot_protect_save_robots_txt_url',
+        'permission_callback' => function() {
+            return current_user_can('manage_options');
+        },
+        'args' => [
+            'url' => [
+                'required' => true,
+                'type' => 'string'
+            ]
+        ]
+    ]);
 }
 add_action('rest_api_init', 'agent_ai_bot_protect_register_routes');
 
@@ -841,4 +864,21 @@ function agent_ai_bot_protect_get_stats($request) {
     wp_cache_set($cache_key, maybe_serialize($response), '', 3600); // Cache for 1 hour
     
     return rest_ensure_response($response);
+}
+
+// Get robots.txt URL
+function agent_ai_bot_protect_get_robots_txt_url() {
+    $url = get_option('agent_ai_bot_protect_robots_txt_url', '');
+    return rest_ensure_response(['url' => $url]);
+}
+
+// Save robots.txt URL
+function agent_ai_bot_protect_save_robots_txt_url($request) {
+    $url = $request->get_param('url');
+    if (empty($url)) {
+        return new WP_Error('invalid_url', 'URL cannot be empty', ['status' => 400]);
+    }
+
+    update_option('agent_ai_bot_protect_robots_txt_url', $url);
+    return rest_ensure_response(['success' => true]);
 } 
