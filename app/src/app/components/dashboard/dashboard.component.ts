@@ -87,6 +87,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   private loadBotData() {
+    console.log('Sending request to get bot stats');
     const startDate = this.formatDate(this.dateRangeForm?.get('startDate')?.value);
     const endDate = this.formatDate(this.dateRangeForm?.get('endDate')?.value);
     

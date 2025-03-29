@@ -709,27 +709,45 @@ function agent_ai_bot_protect_get_stats($request) {
     global $wpdb;
     $counts_table = $wpdb->prefix . 'agent_ai_bot_protect_counts';
     
-    // Get date range parameters
+    // Log the incoming request
+    error_log('Agent AI Bot Protect: Received bot-stats request with params: ' . print_r($request->get_params(), true));
+    
+    // Get date range parameters with validation
     $start_date = $request->get_param('start_date');
     $end_date = $request->get_param('end_date');
     
-    // Default to last 30 days if not specified
-    if (empty($start_date)) {
+    // Log initial date parameters
+    error_log('Agent AI Bot Protect: Initial date params - start: ' . $start_date . ', end: ' . $end_date);
+    
+    // Validate and sanitize dates
+    if (!empty($start_date)) {
+        $start_date = sanitize_text_field($start_date);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
+            $start_date = gmdate('Y-m-d', strtotime('-30 days'));
+            error_log('Agent AI Bot Protect: Invalid start_date format, defaulting to: ' . $start_date);
+        }
+    } else {
         $start_date = gmdate('Y-m-d', strtotime('-30 days'));
+        error_log('Agent AI Bot Protect: No start_date provided, defaulting to: ' . $start_date);
     }
     
-    if (empty($end_date)) {
+    if (!empty($end_date)) {
+        $end_date = sanitize_text_field($end_date);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
+            $end_date = gmdate('Y-m-d');
+            error_log('Agent AI Bot Protect: Invalid end_date format, defaulting to: ' . $end_date);
+        }
+    } else {
         $end_date = gmdate('Y-m-d');
+        error_log('Agent AI Bot Protect: No end_date provided, defaulting to: ' . $end_date);
     }
-    
-    // Direct DB queries are necessary here for complex date-range aggregation queries on custom tables
-    // We're implementing caching to improve performance
     
     // Cache key for the entire stats response for this date range
     $cache_key = 'agent_ai_bot_protect_stats_' . md5($start_date . '_' . $end_date);
     $cached_response = wp_cache_get($cache_key);
     
     if (false !== $cached_response) {
+        error_log('Agent AI Bot Protect: Returning cached response for key: ' . $cache_key);
         return rest_ensure_response(maybe_unserialize($cached_response));
     }
     
@@ -738,11 +756,12 @@ function agent_ai_bot_protect_get_stats($request) {
     $bot_stats = wp_cache_get($bot_stats_cache_key);
     
     if (false === $bot_stats) {
+        error_log('Agent AI Bot Protect: Fetching bot stats from database for date range: ' . $start_date . ' to ' . $end_date);
         $bot_stats = $wpdb->get_results($wpdb->prepare(
             "SELECT 
                 bot_name, 
-                SUM(hit_count) as total, 
-                SUM(blocked_count) as blocked
+                COALESCE(SUM(hit_count), 0) as total, 
+                COALESCE(SUM(blocked_count), 0) as blocked
              FROM $counts_table 
              WHERE date_recorded BETWEEN %s AND %s
              GROUP BY bot_name
@@ -750,6 +769,7 @@ function agent_ai_bot_protect_get_stats($request) {
             $start_date,
             $end_date
         ));
+        error_log('Agent AI Bot Protect: Raw bot stats from DB: ' . print_r($bot_stats, true));
         wp_cache_set($bot_stats_cache_key, $bot_stats, '', 3600); // Cache for 1 hour
     }
     
@@ -758,11 +778,12 @@ function agent_ai_bot_protect_get_stats($request) {
     $daily_stats = wp_cache_get($daily_stats_cache_key);
     
     if (false === $daily_stats) {
+        error_log('Agent AI Bot Protect: Fetching daily stats from database for date range: ' . $start_date . ' to ' . $end_date);
         $daily_stats = $wpdb->get_results($wpdb->prepare(
             "SELECT 
                 date_recorded, 
-                SUM(hit_count) as hits, 
-                SUM(blocked_count) as blocks
+                COALESCE(SUM(hit_count), 0) as hits, 
+                COALESCE(SUM(blocked_count), 0) as blocks
              FROM $counts_table 
              WHERE date_recorded BETWEEN %s AND %s
              GROUP BY date_recorded
@@ -770,30 +791,51 @@ function agent_ai_bot_protect_get_stats($request) {
             $start_date,
             $end_date
         ));
+        error_log('Agent AI Bot Protect: Raw daily stats from DB: ' . print_r($daily_stats, true));
         wp_cache_set($daily_stats_cache_key, $daily_stats, '', 3600); // Cache for 1 hour
     }
+    
+    // Ensure we have arrays even if no data
+    $bot_stats = is_array($bot_stats) ? $bot_stats : array();
+    $daily_stats = is_array($daily_stats) ? $daily_stats : array();
+    
+    // Process bot stats with type casting and validation
+    $processed_bots = array();
+    foreach ($bot_stats as $stat) {
+        if (isset($stat->bot_name) && is_string($stat->bot_name)) {
+            $processed_bots[$stat->bot_name] = array(
+                'total' => (int)($stat->total ?? 0),
+                'blocked' => (int)($stat->blocked ?? 0)
+            );
+        }
+    }
+    error_log('Agent AI Bot Protect: Processed bot stats: ' . print_r($processed_bots, true));
+    
+    // Process daily stats with type casting and validation
+    $processed_daily = array();
+    foreach ($daily_stats as $stat) {
+        if (isset($stat->date_recorded) && is_string($stat->date_recorded)) {
+            $processed_daily[] = array(
+                'date' => $stat->date_recorded,
+                'hits' => (int)($stat->hits ?? 0),
+                'blocks' => (int)($stat->blocks ?? 0)
+            );
+        }
+    }
+    error_log('Agent AI Bot Protect: Processed daily stats: ' . print_r($processed_daily, true));
     
     $response = array(
         'success' => true,
         'data' => array(
             'start_date' => $start_date,
             'end_date' => $end_date,
-            'bots' => array_reduce($bot_stats, function($carry, $item) {
-                $carry[$item->bot_name] = array(
-                    'total' => (int)$item->total,
-                    'blocked' => (int)$item->blocked
-                );
-                return $carry;
-            }, array()),
-            'daily' => array_map(function($day) {
-                return array(
-                    'date' => $day->date_recorded,
-                    'hits' => (int)$day->hits,
-                    'blocks' => (int)$day->blocks
-                );
-            }, $daily_stats)
+            'bots' => $processed_bots,
+            'daily' => $processed_daily
         )
     );
+    
+    // Log the final response before caching
+    error_log('Agent AI Bot Protect: Final response before caching: ' . print_r($response, true));
     
     // Cache the entire response
     wp_cache_set($cache_key, maybe_serialize($response), '', 3600); // Cache for 1 hour
