@@ -151,7 +151,7 @@ function agent_ai_bot_protect_check_and_block() {
     $blocking_enabled = get_option('agent_ai_bot_protect_blocking_enabled', '1') === '1';
     
     // Get user agent
-    $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+    $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field($_SERVER['HTTP_USER_AGENT']) : '';
     if (empty($user_agent)) {
         return;
     }
@@ -203,9 +203,9 @@ function agent_ai_bot_protect_check_and_block() {
                 // Send 403 Forbidden response
                 status_header(403);
                 nocache_headers();
-                echo '<html><head><title>403 Forbidden</title></head><body>';
-                echo '<h1>403 Forbidden</h1>';
-                echo '<p>Access to this resource is denied by Agent AI Bot Protect.</p>';
+                echo '<html><head><title>' . esc_html__('403 Forbidden', 'agent-ai-bot-protect') . '</title></head><body>';
+                echo '<h1>' . esc_html__('403 Forbidden', 'agent-ai-bot-protect') . '</h1>';
+                echo '<p>' . esc_html__('Access to this resource is denied by Agent AI Bot Protect.', 'agent-ai-bot-protect') . '</p>';
                 echo '</body></html>';
                 exit;
             }
@@ -320,7 +320,7 @@ function agent_ai_bot_protect_enqueue_scripts() {
     }
 
     // Only load admin-specific scripts on our admin page
-    if (isset($_GET['page']) && $_GET['page'] === 'agent-ai-bot-protect') {
+    if (isset($_GET['page']) && sanitize_key($_GET['page']) === 'agent-ai-bot-protect') {
         // Enqueue the module script
         wp_enqueue_script(
             'agent-ai-bot-protect-module',
@@ -504,7 +504,7 @@ add_action('rest_api_init', 'agent_ai_bot_protect_register_routes');
 function agent_ai_bot_protect_save_robots_txt($request) {
     // Get content parameter and ensure it's a string
     $content = $request->get_param('content');
-    $content = is_null($content) ? '' : (string)$content;
+    $content = is_null($content) ? '' : sanitize_textarea_field((string)$content);
     
     // Check if we should clear the BotShield section
     $clear = $request->get_param('clear');
@@ -653,10 +653,13 @@ function agent_ai_bot_protect_analyze_logs() {
 function agent_ai_bot_protect_log_visit($request) {
     $data = $request->get_params();
     
-    $is_bot = preg_match('/bot|crawl|spider|slurp|search|agent/i', $data['userAgent']) ? 1 : 0;
+    // Sanitize the data
+    $userAgent = isset($data['userAgent']) ? sanitize_text_field($data['userAgent']) : '';
+    
+    $is_bot = preg_match('/bot|crawl|spider|slurp|search|agent/i', $userAgent) ? 1 : 0;
     
     if ($is_bot) {
-        $bot_name = extract_bot_name($data['userAgent']);
+        $bot_name = extract_bot_name($userAgent);
         // Only increment count for bots
         agent_ai_bot_protect_increment_bot_count($bot_name, false);
     }
@@ -682,7 +685,7 @@ function agent_ai_bot_protect_add_cors_headers() {
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept');
     
-    if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    if (sanitize_text_field($_SERVER['REQUEST_METHOD']) == 'OPTIONS') {
         status_header(200);
         exit();
     }
@@ -719,7 +722,7 @@ add_action('admin_head', 'agent_ai_bot_protect_admin_styles');
 
 // Toggle bot blocking
 function agent_ai_bot_protect_toggle_blocking($request) {
-    $enabled = $request->get_param('enabled');
+    $enabled = (bool)$request->get_param('enabled');
     update_option('agent_ai_bot_protect_blocking_enabled', $enabled ? '1' : '0');
     
     return rest_ensure_response([
@@ -881,7 +884,7 @@ function agent_ai_bot_protect_get_robots_txt_url() {
 
 // Save robots.txt URL
 function agent_ai_bot_protect_save_robots_txt_url($request) {
-    $url = $request->get_param('url');
+    $url = sanitize_url($request->get_param('url'));
     if (empty($url)) {
         return new WP_Error('invalid_url', 'URL cannot be empty', ['status' => 400]);
     }
