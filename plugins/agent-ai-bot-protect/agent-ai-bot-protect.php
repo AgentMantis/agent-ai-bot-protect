@@ -696,10 +696,10 @@ function agent_ai_bot_protect_admin_styles() {
     echo '
     <style>
         #toplevel_page_agent-ai-bot-protect .wp-menu-image img {
-            height: 15px;
+            height: 35px;
             padding: 0px;
-            margin-top: 15px;
-            margin-left: 5px;
+            margin-top: 5px;
+            margin-left: 2px;
         }
     </style>
     ';
