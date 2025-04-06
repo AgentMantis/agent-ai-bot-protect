@@ -58,7 +58,7 @@ function agent_ai_bot_protect_check_db_updates() {
         $table_exists = wp_cache_get($cache_key);
         
         if (false === $table_exists) {
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+            $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) === $table_name;
             wp_cache_set($cache_key, $table_exists, '', 3600); // Cache for 1 hour
         }
         
@@ -69,13 +69,13 @@ function agent_ai_bot_protect_check_db_updates() {
             $column_exists = wp_cache_get($column_cache_key);
             
             if (false === $column_exists) {
-                $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'is_blocked'");
+                $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `%1\$s` LIKE 'is_blocked'", $table_name));
                 wp_cache_set($column_cache_key, $column_exists, '', 3600); // Cache for 1 hour
             }
             
             if (empty($column_exists)) {
                 // Add the is_blocked column
-                $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_blocked tinyint(1) NOT NULL DEFAULT 0");
+                $wpdb->query($wpdb->prepare("ALTER TABLE `%1\$s` ADD COLUMN is_blocked tinyint(1) NOT NULL DEFAULT 0", $table_name));
                 // Invalidate the cache since we modified the schema
                 wp_cache_delete($column_cache_key);
             }
@@ -151,7 +151,7 @@ function agent_ai_bot_protect_check_and_block() {
     $blocking_enabled = get_option('agent_ai_bot_protect_blocking_enabled', '1') === '1';
     
     // Get user agent
-    $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field($_SERVER['HTTP_USER_AGENT']) : '';
+    $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '';
     if (empty($user_agent)) {
         return;
     }
@@ -249,10 +249,11 @@ function agent_ai_bot_protect_increment_bot_count($bot_name, $was_blocked = fals
     try {
         // Try to update existing record for today
         $result = $wpdb->query($wpdb->prepare(
-            "UPDATE $table_name 
+            "UPDATE `%1\$s` 
              SET hit_count = hit_count + 1,
-                 blocked_count = blocked_count + %d
-             WHERE bot_name = %s AND date_recorded = %s",
+                 blocked_count = blocked_count + %2\$d
+             WHERE bot_name = %3\$s AND date_recorded = %4\$s",
+            $table_name,
             $was_blocked ? 1 : 0,
             $bot_name,
             $today
@@ -320,7 +321,7 @@ function agent_ai_bot_protect_enqueue_scripts() {
     }
 
     // Only load admin-specific scripts on our admin page
-    if (isset($_GET['page']) && sanitize_key($_GET['page']) === 'agent-ai-bot-protect') {
+    if (is_admin() && isset($_GET['page']) && sanitize_key(wp_unslash($_GET['page'])) === 'agent-ai-bot-protect') {
         // Enqueue the module script
         wp_enqueue_script(
             'agent-ai-bot-protect-module',
@@ -581,9 +582,12 @@ function agent_ai_bot_protect_analyze_logs() {
     
     if (false === $stats) {
         $stats = $wpdb->get_row(
-            "SELECT SUM(hit_count) as total_hits, SUM(blocked_count) as total_blocks
-             FROM $counts_table 
-             WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)"
+            $wpdb->prepare(
+                "SELECT SUM(hit_count) as total_hits, SUM(blocked_count) as total_blocks
+                 FROM `%1\$s` 
+                 WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)",
+                $counts_table
+            )
         );
         wp_cache_set($stats_cache_key, $stats, '', 3600); // Cache for 1 hour
     }
@@ -597,11 +601,14 @@ function agent_ai_bot_protect_analyze_logs() {
     
     if (false === $bot_stats) {
         $bot_stats = $wpdb->get_results(
-            "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
-             FROM $counts_table 
-             WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-             GROUP BY bot_name
-             ORDER BY total DESC"
+            $wpdb->prepare(
+                "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
+                 FROM `%1\$s` 
+                 WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                 GROUP BY bot_name
+                 ORDER BY total DESC",
+                $counts_table
+            )
         );
         wp_cache_set($bot_stats_cache_key, $bot_stats, '', 3600); // Cache for 1 hour
     }
@@ -612,11 +619,14 @@ function agent_ai_bot_protect_analyze_logs() {
     
     if (false === $daily_stats) {
         $daily_stats = $wpdb->get_results(
-            "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
-             FROM $counts_table 
-             WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-             GROUP BY date_recorded
-             ORDER BY date_recorded DESC"
+            $wpdb->prepare(
+                "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
+                 FROM `%1\$s` 
+                 WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                 GROUP BY date_recorded
+                 ORDER BY date_recorded DESC",
+                $counts_table
+            )
         );
         wp_cache_set($daily_stats_cache_key, $daily_stats, '', 3600); // Cache for 1 hour
     }
@@ -685,7 +695,8 @@ function agent_ai_bot_protect_add_cors_headers() {
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept');
     
-    if (sanitize_text_field($_SERVER['REQUEST_METHOD']) == 'OPTIONS') {
+    // Properly validate and unslash the REQUEST_METHOD
+    if (isset($_SERVER['REQUEST_METHOD']) && sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) === 'OPTIONS') {
         status_header(200);
         exit();
     }
@@ -795,10 +806,11 @@ function agent_ai_bot_protect_get_stats($request) {
                 bot_name, 
                 COALESCE(SUM(hit_count), 0) as total, 
                 COALESCE(SUM(blocked_count), 0) as blocked
-             FROM $counts_table 
+             FROM `%1\$s` 
              WHERE date_recorded BETWEEN %s AND %s
              GROUP BY bot_name
              ORDER BY total DESC",
+            $counts_table,
             $start_date,
             $end_date
         ));
@@ -817,10 +829,11 @@ function agent_ai_bot_protect_get_stats($request) {
                 date_recorded, 
                 COALESCE(SUM(hit_count), 0) as hits, 
                 COALESCE(SUM(blocked_count), 0) as blocks
-             FROM $counts_table 
+             FROM `%1\$s` 
              WHERE date_recorded BETWEEN %s AND %s
              GROUP BY date_recorded
              ORDER BY date_recorded ASC",
+            $counts_table,
             $start_date,
             $end_date
         ));
