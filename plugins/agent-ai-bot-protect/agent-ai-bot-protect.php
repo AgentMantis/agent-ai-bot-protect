@@ -286,29 +286,29 @@ function agent_ai_bot_protect_enqueue_scripts() {
 
     // Check if we're NOT in admin
     if (!is_admin()) {
-        // Add immediate capture of critical data
-        add_action('wp_head', function() {
-            ?>
-            <script>
-                // Create temporary storage for initial page load data
-                window._botShieldInitialData = {
-                    userAgent: navigator.userAgent,
-                    timestamp: new Date().getTime(),
-                    referrer: document.referrer
-                    // Add any other critical initial data you need
-                };
-            </script>
-            <?php
-        }, 1);
-
-        // Enqueue main analytics script
-        wp_enqueue_script(
+        // Register and enqueue main analytics script
+        wp_register_script(
             'tracking-agent',
             $plugin_dir_url . 'tracking-agent.js',
             array(), 
             '1.0.0',
             true 
         );
+        
+        // Add initial data capture script
+        wp_add_inline_script(
+            'tracking-agent',
+            'window._botShieldInitialData = {
+                userAgent: navigator.userAgent,
+                timestamp: new Date().getTime(),
+                referrer: document.referrer
+                // Add any other critical initial data you need
+            };',
+            'before'
+        );
+        
+        // Enqueue the script
+        wp_enqueue_script('tracking-agent');
         
         // Add async attribute to the script
         add_filter('script_loader_tag', function($tag, $handle) {
@@ -693,16 +693,27 @@ add_action('rest_api_init', function() {
 }, 15);
 
 function agent_ai_bot_protect_admin_styles() {
-    echo '
-    <style>
+    // Register an empty stylesheet for our admin styles
+    wp_register_style(
+        'agent-ai-bot-protect-admin-styles',
+        false
+    );
+    
+    // Add our inline styles
+    wp_add_inline_style(
+        'agent-ai-bot-protect-admin-styles',
+        '
         #toplevel_page_agent-ai-bot-protect .wp-menu-image img {
             height: 35px;
             padding: 0px;
             margin-top: 5px;
             margin-left: 2px;
         }
-    </style>
-    ';
+        '
+    );
+    
+    // Enqueue the style
+    wp_enqueue_style('agent-ai-bot-protect-admin-styles');
 }
 add_action('admin_head', 'agent_ai_bot_protect_admin_styles');
 
