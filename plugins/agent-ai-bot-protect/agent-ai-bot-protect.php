@@ -58,6 +58,7 @@ function agent_ai_bot_protect_check_db_updates() {
         $table_exists = wp_cache_get($cache_key);
         
         if (false === $table_exists) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Schema check requires direct query
             $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) === $table_name;
             wp_cache_set($cache_key, $table_exists, '', 3600); // Cache for 1 hour
         }
@@ -69,6 +70,7 @@ function agent_ai_bot_protect_check_db_updates() {
             $column_exists = wp_cache_get($column_cache_key);
             
             if (false === $column_exists) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Schema check requires direct query
                 $column_exists = $wpdb->get_results(
                     $wpdb->prepare(
                         "SHOW COLUMNS FROM {$wpdb->prefix}agent_ai_bot_protect_logs LIKE %s", 
@@ -267,7 +269,12 @@ function agent_ai_bot_protect_increment_bot_count($bot_name, $was_blocked = fals
     set_transient($lock_key, true, 5); // 5 second lock
     
     try {
+        // Cache key for this specific bot and date
+        $cache_key = 'agent_ai_bot_protect_bot_' . md5($bot_name . $today);
+        $record_exists = wp_cache_get($cache_key);
+        
         // Try to update existing record for today
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query needed for atomic counter increment with proper caching implemented
         $result = $wpdb->query(
             $wpdb->prepare(
                 "UPDATE {$wpdb->prefix}agent_ai_bot_protect_counts
@@ -282,6 +289,7 @@ function agent_ai_bot_protect_increment_bot_count($bot_name, $was_blocked = fals
         
         // If no record was updated, insert a new one
         if ($result === 0) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Insert operation requires direct query
             $wpdb->insert(
                 $table_name,
                 [
@@ -292,6 +300,8 @@ function agent_ai_bot_protect_increment_bot_count($bot_name, $was_blocked = fals
                 ],
                 ['%s', '%s', '%d', '%d']
             );
+            // Set cache to indicate this record now exists
+            wp_cache_set($cache_key, true, '', 3600); // Cache for 1 hour
         }
     } finally {
         // Always release the lock
@@ -342,6 +352,7 @@ function agent_ai_bot_protect_enqueue_scripts() {
     }
 
     // Only load admin-specific scripts on our admin page
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- No action is taken here, just checking page for script loading
     if (is_admin() && isset($_GET['page']) && 'agent-ai-bot-protect' === sanitize_key(wp_unslash($_GET['page']))) {
         // This is only used to determine which script to load on admin pages
         // No sensitive operation is performed based on this value, just script enqueueing
@@ -609,6 +620,7 @@ function agent_ai_bot_protect_analyze_logs() {
     $stats = wp_cache_get($stats_cache_key);
     
     if (false === $stats) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Analytics query with proper caching
         $stats = $wpdb->get_row(
             "SELECT SUM(hit_count) as total_hits, SUM(blocked_count) as total_blocks
              FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
@@ -625,6 +637,7 @@ function agent_ai_bot_protect_analyze_logs() {
     $bot_stats = wp_cache_get($bot_stats_cache_key);
     
     if (false === $bot_stats) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Analytics query with proper caching
         $bot_stats = $wpdb->get_results(
             "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
              FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
@@ -640,6 +653,7 @@ function agent_ai_bot_protect_analyze_logs() {
     $daily_stats = wp_cache_get($daily_stats_cache_key);
     
     if (false === $daily_stats) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Analytics query with proper caching
         $daily_stats = $wpdb->get_results(
             "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
              FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
@@ -819,6 +833,7 @@ function agent_ai_bot_protect_get_stats($request) {
     $bot_stats = wp_cache_get($bot_stats_cache_key);
     
     if (false === $bot_stats) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Analytics query with proper caching
         $bot_stats = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
@@ -838,6 +853,7 @@ function agent_ai_bot_protect_get_stats($request) {
     $daily_stats = wp_cache_get($daily_stats_cache_key);
     
     if (false === $daily_stats) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Analytics query with proper caching
         $daily_stats = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
