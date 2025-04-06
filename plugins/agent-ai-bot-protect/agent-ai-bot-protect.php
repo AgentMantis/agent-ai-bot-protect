@@ -743,7 +743,9 @@ function agent_ai_bot_protect_admin_styles() {
     // Register an empty stylesheet for our admin styles
     wp_register_style(
         'agent-ai-bot-protect-admin-styles',
-        false
+        false,
+        array(),  // No dependencies 
+        '1.0.0'   // Version number
     );
     
     // Add our inline styles
