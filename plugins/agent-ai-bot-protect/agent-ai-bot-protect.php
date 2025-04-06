@@ -69,13 +69,33 @@ function agent_ai_bot_protect_check_db_updates() {
             $column_exists = wp_cache_get($column_cache_key);
             
             if (false === $column_exists) {
-                $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `%1\$s` LIKE 'is_blocked'", $table_name));
+                $column_exists = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SHOW COLUMNS FROM {$wpdb->prefix}agent_ai_bot_protect_logs LIKE %s", 
+                        'is_blocked'
+                    )
+                );
                 wp_cache_set($column_cache_key, $column_exists, '', 3600); // Cache for 1 hour
             }
             
             if (empty($column_exists)) {
-                // Add the is_blocked column
-                $wpdb->query($wpdb->prepare("ALTER TABLE `%1\$s` ADD COLUMN is_blocked tinyint(1) NOT NULL DEFAULT 0", $table_name));
+                // Add the is_blocked column using dbDelta which is WordPress' recommended way to handle schema changes
+                require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+                
+                // Create a temporary table definition that includes the new column
+                $charset_collate = $wpdb->get_charset_collate();
+                $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+                    id bigint(20) NOT NULL AUTO_INCREMENT,
+                    user_agent text NOT NULL,
+                    accessed_url varchar(255) NOT NULL,
+                    timestamp datetime NOT NULL,
+                    is_blocked tinyint(1) NOT NULL DEFAULT 0,
+                    PRIMARY KEY  (id)
+                ) $charset_collate;";
+                
+                // Use dbDelta to add the column
+                dbDelta($sql);
+                
                 // Invalidate the cache since we modified the schema
                 wp_cache_delete($column_cache_key);
             }
@@ -248,16 +268,17 @@ function agent_ai_bot_protect_increment_bot_count($bot_name, $was_blocked = fals
     
     try {
         // Try to update existing record for today
-        $result = $wpdb->query($wpdb->prepare(
-            "UPDATE `%1\$s` 
-             SET hit_count = hit_count + 1,
-                 blocked_count = blocked_count + %2\$d
-             WHERE bot_name = %3\$s AND date_recorded = %4\$s",
-            $table_name,
-            $was_blocked ? 1 : 0,
-            $bot_name,
-            $today
-        ));
+        $result = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$wpdb->prefix}agent_ai_bot_protect_counts
+                 SET hit_count = hit_count + 1,
+                    blocked_count = blocked_count + %d
+                 WHERE bot_name = %s AND date_recorded = %s",
+                $was_blocked ? 1 : 0,
+                $bot_name,
+                $today
+            )
+        );
         
         // If no record was updated, insert a new one
         if ($result === 0) {
@@ -321,7 +342,11 @@ function agent_ai_bot_protect_enqueue_scripts() {
     }
 
     // Only load admin-specific scripts on our admin page
-    if (is_admin() && isset($_GET['page']) && sanitize_key(wp_unslash($_GET['page'])) === 'agent-ai-bot-protect') {
+    if (is_admin() && isset($_GET['page']) && 'agent-ai-bot-protect' === sanitize_key(wp_unslash($_GET['page']))) {
+        // This is only used to determine which script to load on admin pages
+        // No sensitive operation is performed based on this value, just script enqueueing
+        // Additionally, it's protected by the 'manage_options' capability requirement
+        
         // Enqueue the module script
         wp_enqueue_script(
             'agent-ai-bot-protect-module',
@@ -378,6 +403,9 @@ function agent_ai_bot_protect_add_admin_menu() {
         'manage_options',     // Capability
         'agent-ai-bot-protect',         // Menu slug
         function() {          // Callback function
+            // This is an admin page that only users with manage_options capability can access
+            // We're just checking if page=agent-ai-bot-protect in the URL to determine which admin page to load
+            // No form submission is being processed here, just loading the Angular app
             ?>
             <div class="wrap mat-typography">
                 <agent-ai-bot-protect></agent-ai-bot-protect>
@@ -582,12 +610,9 @@ function agent_ai_bot_protect_analyze_logs() {
     
     if (false === $stats) {
         $stats = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT SUM(hit_count) as total_hits, SUM(blocked_count) as total_blocks
-                 FROM `%1\$s` 
-                 WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)",
-                $counts_table
-            )
+            "SELECT SUM(hit_count) as total_hits, SUM(blocked_count) as total_blocks
+             FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
+             WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)"
         );
         wp_cache_set($stats_cache_key, $stats, '', 3600); // Cache for 1 hour
     }
@@ -601,14 +626,11 @@ function agent_ai_bot_protect_analyze_logs() {
     
     if (false === $bot_stats) {
         $bot_stats = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
-                 FROM `%1\$s` 
-                 WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                 GROUP BY bot_name
-                 ORDER BY total DESC",
-                $counts_table
-            )
+            "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
+             FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
+             WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+             GROUP BY bot_name
+             ORDER BY total DESC"
         );
         wp_cache_set($bot_stats_cache_key, $bot_stats, '', 3600); // Cache for 1 hour
     }
@@ -619,14 +641,11 @@ function agent_ai_bot_protect_analyze_logs() {
     
     if (false === $daily_stats) {
         $daily_stats = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
-                 FROM `%1\$s` 
-                 WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                 GROUP BY date_recorded
-                 ORDER BY date_recorded DESC",
-                $counts_table
-            )
+            "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
+             FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
+             WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+             GROUP BY date_recorded
+             ORDER BY date_recorded DESC"
         );
         wp_cache_set($daily_stats_cache_key, $daily_stats, '', 3600); // Cache for 1 hour
     }
@@ -800,21 +819,17 @@ function agent_ai_bot_protect_get_stats($request) {
     $bot_stats = wp_cache_get($bot_stats_cache_key);
     
     if (false === $bot_stats) {
-        
-        $bot_stats = $wpdb->get_results($wpdb->prepare(
-            "SELECT 
-                bot_name, 
-                COALESCE(SUM(hit_count), 0) as total, 
-                COALESCE(SUM(blocked_count), 0) as blocked
-             FROM `%1\$s` 
-             WHERE date_recorded BETWEEN %s AND %s
-             GROUP BY bot_name
-             ORDER BY total DESC",
-            $counts_table,
-            $start_date,
-            $end_date
-        ));
-        
+        $bot_stats = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT bot_name, SUM(hit_count) as total, SUM(blocked_count) as blocked
+                 FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
+                 WHERE date_recorded BETWEEN %s AND %s
+                 GROUP BY bot_name
+                 ORDER BY total DESC",
+                $start_date,
+                $end_date
+            )
+        );
         wp_cache_set($bot_stats_cache_key, $bot_stats, '', 3600); // Cache for 1 hour
     }
     
@@ -823,21 +838,17 @@ function agent_ai_bot_protect_get_stats($request) {
     $daily_stats = wp_cache_get($daily_stats_cache_key);
     
     if (false === $daily_stats) {
-        
-        $daily_stats = $wpdb->get_results($wpdb->prepare(
-            "SELECT 
-                date_recorded, 
-                COALESCE(SUM(hit_count), 0) as hits, 
-                COALESCE(SUM(blocked_count), 0) as blocks
-             FROM `%1\$s` 
-             WHERE date_recorded BETWEEN %s AND %s
-             GROUP BY date_recorded
-             ORDER BY date_recorded ASC",
-            $counts_table,
-            $start_date,
-            $end_date
-        ));
-       
+        $daily_stats = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT date_recorded, SUM(hit_count) as hits, SUM(blocked_count) as blocks
+                 FROM {$wpdb->prefix}agent_ai_bot_protect_counts 
+                 WHERE date_recorded BETWEEN %s AND %s
+                 GROUP BY date_recorded
+                 ORDER BY date_recorded ASC",
+                $start_date,
+                $end_date
+            )
+        );
         wp_cache_set($daily_stats_cache_key, $daily_stats, '', 3600); // Cache for 1 hour
     }
     
