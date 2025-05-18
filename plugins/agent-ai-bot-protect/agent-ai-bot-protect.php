@@ -702,7 +702,7 @@ function agent_ai_bot_protect_log_visit($request) {
     $is_bot = preg_match('/bot|crawl|spider|slurp|search|agent/i', $userAgent) ? 1 : 0;
     
     if ($is_bot) {
-        $bot_name = extract_bot_name($userAgent);
+        $bot_name = agent_ai_bot_protect_extract_bot_name($userAgent);
         // Only increment count for bots
         agent_ai_bot_protect_increment_bot_count($bot_name, false);
     }
@@ -714,7 +714,7 @@ function agent_ai_bot_protect_log_visit($request) {
 }
 
 // Extract bot name
-function extract_bot_name($user_agent) {
+function agent_ai_bot_protect_extract_bot_name($user_agent) {
     if (preg_match('/(?:bot|crawl|slurp|spider|search|agent)(?:\s*|\/)([^\s;)]*)/i', $user_agent, $matches)) {
         return $matches[1] ?: 'Unknown Bot';
     }
